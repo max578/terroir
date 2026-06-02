@@ -1,0 +1,40 @@
+Package: terroir
+Title: Geo-Point Environmental and Agricultural-Economics Data Collector
+Version: 0.0.0.9000
+Authors@R:
+    person("Max", "Moldovan", , "max.moldovan@adelaide.edu.au",
+           role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0001-9680-8474"))
+Description: A uniform, point-keyed interface for retrieving climate, weather,
+    vegetation-index, soil, elevation and agricultural-economics data for a
+    geographic coordinate from many free data sources. Each source is wrapped as
+    an optional adapter behind one request and response contract with mandatory
+    provenance; the package builds and checks with no source package installed.
+    The data-collector member of the flexyBayes constellation.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    cli,
+    data.table
+Suggests:
+    chirps,
+    geodata,
+    GSODR,
+    knitr,
+    MODISTools,
+    nasapower,
+    read.abares,
+    rmarkdown,
+    rsi,
+    rstac,
+    sf,
+    terra,
+    testthat (>= 3.0.0),
+    weatherOz,
+    withr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/max578/terroir
+BugReports: https://github.com/max578/terroir/issues

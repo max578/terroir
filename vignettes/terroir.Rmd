@@ -1,0 +1,92 @@
+---
+title: "Collecting geo-point data with terroir"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Collecting geo-point data with terroir}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(terroir)
+```
+
+## What terroir does
+
+`terroir` pulls climate, weather, vegetation-index, soil, elevation and
+agricultural-economics data **for a single geographic point** from many free
+sources, behind one uniform contract. You build a request, choose a source, and
+get back a tidy, provenance-stamped series.
+
+It is the data-collector member of the flexyBayes constellation: a *producer*
+that feeds covariates and forcings to downstream modelling. Every source is an
+optional adapter, so terroir installs and works with none of the source packages
+present (a missing source yields a structured refusal, not an error).
+
+## The registered sources
+
+```{r}
+list_sources()
+```
+
+Every adapter is **free** -- the data-collector role forbids a paid source
+(`register_source()` refuses `free = FALSE`).
+
+## A request
+
+```{r}
+req <- geo_point_request(
+  lon = 138.6, lat = -34.92,       # Adelaide
+  start = "2020-01-01", end = "2020-01-31",
+  variables = c("T2M", "PRECTOTCORR"),
+  source = "nasapower"
+)
+req
+```
+
+## Collecting (live)
+
+`collect_point()` performs the download. It is not run here (vignettes build
+offline), but the call is simply:
+
+```{r, eval = FALSE}
+series <- collect_point(req)
+series                 # a geo_point_series: tidy data.table + provenance
+attr(series, "provenance")
+```
+
+The returned `geo_point_series` always has the same fixed columns --
+
+```{r}
+terroir:::.geo_point_cols
+```
+
+-- with the units column and a mandatory provenance attribute (source, version,
+retrieval time, licence, the exact upstream call). `verify_geo_series()` checks
+all of that and fails loudly if anything is missing, so a malformed series never
+flows downstream silently.
+
+## Graceful refusal
+
+If a source's package is not installed, or its free key is unset, you get a
+first-class refusal rather than an error:
+
+```{r}
+out <- collect_point(geo_point_request(0, 0, source = "not_a_source"))
+is_refusal(out)
+out
+```
+
+## Sources at a glance
+
+| source id | upstream | domain |
+|---|---|---|
+| `nasapower` | nasapower | global climate + solar (no key) |
+| `silo` | weatherOz | SILO 5 km grid, Australia (free email key) |
+| `abares` | read.abares | Australian gridded farm economics |
+| `modis` | MODISTools | MODIS NDVI/EVI |
+| `stac` | rsi | Sentinel-2 NDVI via Planetary Computer |
+
+More sources (GSODR, geodata, chirps, nert) are enrolled in the constellation and
+land as adapters in subsequent releases.

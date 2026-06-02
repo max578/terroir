@@ -1,0 +1,6 @@
+^data-raw$
+^LICENSE\.md$
+^\.Rproj\.user$
+^.*\.Rproj$
+\.DS_Store
+^CONSTELLATION_MEMBER\.md$
