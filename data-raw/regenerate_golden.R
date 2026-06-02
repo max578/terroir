@@ -38,8 +38,11 @@ save_golden("modis", geo_point_request(
   adelaide["lon"], adelaide["lat"], "2020-01-01", "2020-02-28",
   source = "modis"))
 
+# ABARES gridded farm data covers agricultural land; the Adelaide CBD point is
+# all-NA, so the abares golden uses a rural South Australian cropping point.
+abares_point <- c(lon = 140.7, lat = -35.3)
 save_golden("abares", geo_point_request(
-  adelaide["lon"], adelaide["lat"], source = "abares"))
+  abares_point["lon"], abares_point["lat"], source = "abares"))
 
 save_golden("stac", geo_point_request(
   adelaide["lon"], adelaide["lat"], "2020-01-01", "2020-01-31",

@@ -61,7 +61,7 @@
       "weatherOz", warn = FALSE
     ))
   }
-  vals <- request$variables %||% c("max_temp", "min_temp", "daily_rain")
+  vals <- request$variables %||% c("max_temp", "min_temp", "rain")
   out <- tryCatch(
     weatherOz::get_data_drill(
       longitude = request$lon, latitude = request$lat,
@@ -75,17 +75,25 @@
                    "weatherOz", warn = FALSE))
   }
   out <- data.table::as.data.table(out)
-  dcol <- intersect(c("date", "dataframe_date"), names(out))[1]
-  meas <- intersect(vals, names(out))
-  if (is.na(dcol) || !length(meas)) {
+  if (!"date" %in% names(out)) {
+    return(.refuse("weatherOz/SILO returned no date column (live golden pending)",
+                   "weatherOz", warn = FALSE))
+  }
+  # weatherOz returns wide data with renamed columns (max_temp -> air_tmax,
+  # rain -> rainfall, ...). The measurements are every column that is neither an
+  # identifier nor a per-value `*_source` provenance column.
+  id_cols <- c("longitude", "latitude", "year", "month", "day", "date",
+               "elev_m", "extracted")
+  src_cols <- grep("_source$", names(out), value = TRUE)
+  meas <- setdiff(names(out), c(id_cols, src_cols))
+  if (!length(meas)) {
     return(.refuse("weatherOz/SILO returned an unexpected shape (live golden pending)",
                    "weatherOz", warn = FALSE))
   }
   long <- data.table::melt(
-    out, id.vars = dcol, measure.vars = meas,
+    out, id.vars = "date", measure.vars = meas,
     variable.name = "variable", value.name = "value", variable.factor = FALSE
   )
-  data.table::setnames(long, dcol, "date")
   long <- long[, .(date = as.Date(date), variable, value = as.numeric(value),
                    unit = NA_character_)]
   new_geo_point_series(
@@ -104,8 +112,13 @@
   }
   res <- tryCatch({
     r <- read.abares::read_agfd_terra()
-    v <- terra::extract(r, matrix(c(request$lon, request$lat), ncol = 2))
+    # read_agfd_terra() returns a list of SpatRasters (one per climate-scenario
+    # realisation), each with the AGFD variable layers; take the most recent
+    # and extract its layers at the point.
+    ras <- if (inherits(r, "SpatRaster")) r else r[[length(r)]]
+    v <- terra::extract(ras, matrix(c(request$lon, request$lat), ncol = 2))
     v <- as.data.frame(v)
+    v <- v[, setdiff(names(v), "ID"), drop = FALSE]
     long <- data.table::data.table(
       date = as.Date(NA), variable = names(v), value = as.numeric(unlist(v[1, ])),
       unit = NA_character_
@@ -140,12 +153,26 @@
                          conditionMessage(out)), "MODISTools", warn = FALSE))
   }
   out <- data.table::as.data.table(out)
-  scale <- suppressWarnings(as.numeric(out$scale[1]))
-  if (is.na(scale)) scale <- 1
-  long <- out[, .(date = as.Date(calendar_date),
-                  variable = band[1],
-                  value = as.numeric(value) * scale,
-                  unit = "index")]
+  dcol <- intersect(c("calendar_date", "date"), names(out))[1]
+  if (is.na(dcol) || !"value" %in% names(out)) {
+    return(.refuse("MODISTools returned an unexpected shape (live golden pending)",
+                   "MODISTools", warn = FALSE))
+  }
+  # Build from explicit vectors: inside a data.table `j`, the `scale` column
+  # would shadow a local `scale`, multiplying by the character column. Compute
+  # the scaling in plain R to keep it unambiguous.
+  scale_factor <- if ("scale" %in% names(out)) {
+    suppressWarnings(as.numeric(out[["scale"]][1]))
+  } else {
+    NA_real_
+  }
+  if (length(scale_factor) != 1L || is.na(scale_factor)) scale_factor <- 1
+  long <- data.table::data.table(
+    date = as.Date(out[[dcol]]),
+    variable = band[1],
+    value = suppressWarnings(as.numeric(out[["value"]])) * scale_factor,
+    unit = "index"
+  )
   new_geo_point_series(
     long, lon = request$lon, lat = request$lat, source = "modis",
     source_version = utils::packageVersion("MODISTools"),
@@ -168,7 +195,9 @@
       output_filename = tempfile(fileext = ".tif")
     )
     r <- terra::rast(ras)
-    nir <- r[["B08"]]; red <- r[["B04"]]
+    # rsi names output bands by the planetary_computer_v1 mapping values, not
+    # the asset keys: B08 (NIR) -> "N", B04 (red) -> "R".
+    nir <- r[["N"]]; red <- r[["R"]]
     ndvi <- (nir - red) / (nir + red)
     val <- terra::extract(ndvi, terra::vect(sf::st_transform(pt, terra::crs(ndvi))))
     data.table::data.table(
