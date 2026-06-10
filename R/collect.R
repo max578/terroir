@@ -41,6 +41,22 @@ collect_point <- function(request, retrieved_at = NULL) {
     ))
   }
 
+  # IOP / FX-6: refuse a point outside a source's declared spatial extent rather
+  # than silently returning an out-of-coverage (or wrong-cell) value -- this is
+  # the lasrosas-Argentina vs SILO/ABARES-Australia mismatch the audit named.
+  ext <- entry$extent
+  if (!is.null(ext) &&
+      (request$lon < ext[1] || request$lon > ext[3] ||
+       request$lat < ext[2] || request$lat > ext[4])) {
+    return(.refuse(
+      sprintf(paste0("point (%g, %g) is outside the '%s' source extent ",
+                     "[%g, %g] x [%g, %g]; this source does not cover it"),
+              request$lon, request$lat, request$source,
+              ext[1], ext[3], ext[2], ext[4]),
+      source = request$source
+    ))
+  }
+
   series <- entry$fun(request, retrieved_at = retrieved_at)
   if (is_refusal(series)) return(series)
   verify_geo_series(series)

@@ -4,7 +4,7 @@
 \alias{register_source}
 \title{Register a data-source adapter}
 \usage{
-register_source(id, fun, package, free, description = "")
+register_source(id, fun, package, free, description = "", extent = NULL)
 }
 \arguments{
 \item{id}{Character scalar. Unique source id (used as \code{source} in
@@ -19,6 +19,12 @@ register_source(id, fun, package, free, description = "")
 \item{free}{Logical scalar. Must be \code{TRUE} -- the free-only role rule.}
 
 \item{description}{Character scalar. One-line description.}
+
+\item{extent}{Optional numeric \code{c(xmin, ymin, xmax, ymax)} in WGS84 giving
+the source's valid spatial extent, or \code{NULL} for a global source. A
+request outside a declared extent is refused by \code{\link[=collect_point]{collect_point()}} rather
+than silently returning an out-of-coverage value (Independent Oracle
+Principle: an Australia-only source must not be queried over Argentina).}
 }
 \value{
 Invisibly, the registered \code{id}.

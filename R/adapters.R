@@ -166,7 +166,17 @@
   } else {
     NA_real_
   }
-  if (length(scale_factor) != 1L || is.na(scale_factor)) scale_factor <- 1
+  # IOP: never invent a scale. The authoritative MOD13Q1 NDVI scale is 0.0001;
+  # defaulting a missing scale to 1 is a silent 10,000x value error. Refuse
+  # rather than emit un-scaled integers downstream.
+  if (length(scale_factor) != 1L || is.na(scale_factor)) {
+    return(.refuse(
+      paste0("MODISTools returned no authoritative scale factor for band '",
+             band[1], "'; refusing to guess (a default of 1 would be a ",
+             "10,000x error vs the real NDVI scale of 0.0001)"),
+      "MODISTools", warn = FALSE
+    ))
+  }
   long <- data.table::data.table(
     date = as.Date(out[[dcol]]),
     variable = band[1],

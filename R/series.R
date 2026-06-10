@@ -74,7 +74,45 @@ verify_geo_series <- function(x) {
     flds <- paste(.geo_point_prov, collapse = ", ")
     cli::cli_abort("Series is missing mandatory provenance: {flds}.")
   }
+  bad <- .check_value_ranges(x)
+  if (!is.null(bad)) cli::cli_abort(bad)
   invisible(TRUE)
+}
+
+# Value-plausibility conformer (IOP). For recognised physical quantities, an
+# out-of-range value is a symptom of a wrong scale / unit / variable mapping
+# (e.g. un-scaled NDVI integers, the 10,000x error). We check only quantities we
+# can recognise from the variable name + unit, so an unrecognised variable is
+# never falsely rejected. Returns NULL when plausible, else a message string.
+.check_value_ranges <- function(x) {
+  v   <- as.character(x$variable)
+  val <- suppressWarnings(as.numeric(x$value))
+  unit <- if ("unit" %in% names(x)) as.character(x$unit) else rep(NA_character_, length(v))
+  fin <- is.finite(val)
+
+  is_ndvi <- grepl("NDVI|EVI", v, ignore.case = TRUE) |
+             (grepl("ndvi", v, ignore.case = TRUE)) |
+             (!is.na(unit) & unit == "index" & grepl("NDVI|EVI|index", v, ignore.case = TRUE))
+  off_ndvi <- is_ndvi & fin & (val < -1 | val > 1)
+  if (any(off_ndvi)) {
+    rng <- range(val[off_ndvi])
+    return(sprintf(paste0("Implausible NDVI/EVI value(s) outside [-1, 1] ",
+                          "(observed %.4g .. %.4g) -- a likely scale/unit error ",
+                          "(e.g. un-scaled integer index). Refusing the series."),
+                   rng[1], rng[2]))
+  }
+
+  is_temp <- grepl("tmax|tmin|temp|^T2M$|air_tmax|air_tmin|max_temp|min_temp",
+                   v, ignore.case = TRUE)
+  off_temp <- is_temp & fin & (val < -90 | val > 60)
+  if (any(off_temp)) {
+    rng <- range(val[off_temp])
+    return(sprintf(paste0("Implausible temperature value(s) outside [-90, 60] ",
+                          "degC (observed %.4g .. %.4g) -- a likely unit error. ",
+                          "Refusing the series."),
+                   rng[1], rng[2]))
+  }
+  NULL
 }
 
 #' @export
