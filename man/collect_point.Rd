@@ -4,13 +4,22 @@
 \alias{collect_point}
 \title{Collect geo-point data for one request}
 \usage{
-collect_point(request, retrieved_at = NULL)
+collect_point(
+  request,
+  retrieved_at = NULL,
+  offline = getOption("terroir.offline", FALSE)
+)
 }
 \arguments{
 \item{request}{A \code{geo_point_request} from \code{\link[=geo_point_request]{geo_point_request()}}.}
 
 \item{retrieved_at}{Optional character scalar timestamp (provenance). Defaults
-to the current time.}
+to the current time. Ignored in offline mode (a replayed series keeps the
+fixture's recorded timestamp).}
+
+\item{offline}{Logical scalar. When \code{TRUE}, answer from a recorded fixture
+with zero network egress (see Details). Defaults to the \code{terroir.offline}
+option, otherwise \code{FALSE}.}
 }
 \value{
 A \code{geo_point_series}, or a \code{terroir_refusal}.
@@ -25,7 +34,19 @@ installed.
 \details{
 \code{collect_point()} performs network input/output, so it stamps \code{retrieved_at}
 with the current time by default; pass \code{retrieved_at} for reproducible runs.
+
+In \strong{offline mode} (\code{offline = TRUE}, or globally via
+\code{options(terroir.offline = TRUE)}) the request is answered from a recorded
+fixture with no network egress at all: the matching cached series is replayed
+with its provenance marked \code{replayed = TRUE} and its original \code{retrieved_at}
+preserved (see \code{\link[=is_replayed]{is_replayed()}}). This lets a sovereign-coordinate trial run
+with zero upstream contact, and makes a pipeline reproducible bit-for-bit.
+When no recorded fixture answers the request, offline mode returns a
+structured refusal rather than silently falling back to the network. The
+fixture directory is the \code{terroir.fixture_dir} option if set, otherwise the
+installed package's \verb{fixtures/} directory.
 }
 \seealso{
-\code{\link[=geo_point_request]{geo_point_request()}}, \code{\link[=list_sources]{list_sources()}}, \code{\link[=verify_geo_series]{verify_geo_series()}}
+\code{\link[=geo_point_request]{geo_point_request()}}, \code{\link[=list_sources]{list_sources()}}, \code{\link[=verify_geo_series]{verify_geo_series()}},
+\code{\link[=is_replayed]{is_replayed()}}
 }

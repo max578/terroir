@@ -7,11 +7,29 @@ id: C6
 version: 1
 kind: data
 owner: terroir
+object_system: S3
 consumers: [flexyBayes, kernR, PESTO]
 conformance_test: "verify_geo_series() (schema + units + provenance) + per-adapter golden-file round-trip + free-source assertion"
 charter: flexyBayes_dev/CONSTELLATION.md
-status: draft contract; member scaffolded 2026-06-02 (C6 machinery + CORE adapters built; nasapower live-verified; live golden for silo/abares/modis/stac is Phase 2b)
+status: stable (v0.1.0 dev). The C6 machinery (request / series / verify /
+  registry / offline replay / coarsening) and the response schema are stable.
+  Adapter grounding is mixed and recorded in terroir_external_facts(): the
+  nasapower (variable codes) and modis (product / band / NDVI scale) adapters
+  are live-verified against their authorities (2026-06-13); the silo, abares and
+  stac adapters remain draft (their authoritative oracle has not yet been run in
+  a recorded session -- honestly [unverified], not silently asserted).
 ```
+
+**Object system: S3 (deliberate).** terroir is a C6 *producer* -- a classed
+`data.table` (`geo_point_series`) plus an attribute-carried provenance record
+and an optional-manifest pattern, the same shape as `masque`. S3 is the right
+fit for a producer of a tabular contract: it is transparent to a consumer
+(`inherits(x, "geo_point_series")` + the fixed columns), needs no formal class
+machinery for what is fundamentally a tagged table, and keeps the dependency
+surface minimal. An S7 migration is **out of scope** -- it would buy nothing for
+a producer and would add ceremony the contract does not need. The inference-hub
+members (PESTO, flexyBayes) own the S7 manifest contract; a data collector does
+not need to.
 
 The contract terroir exposes so the constellation can pull climate, weather,
 vegetation-index, soil, elevation and agricultural-economics data **for a

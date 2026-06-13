@@ -1,5 +1,6 @@
-# external-fact families: product_id, band_id, scale_factor, variable_code,
-#   renamed_column, layer_name, band_mapping
+# external-fact families: product_id, band_id, scale_factor,
+#   nasapower_variable_code, variable_code, renamed_column, layer_name,
+#   band_mapping
 # (recipe-52 catalogue/coverage header -- the validator's per-family F14 grep
 #  resolves every registry family to this catalogue-diff oracle file.)
 #
@@ -16,7 +17,7 @@ skip_if_no_oracle <- function(pkg) {
   testthat::skip_if_offline()
 }
 
-test_that("MODIS product + band ids exist in the live ORNL DAAC catalogue", {
+test_that("MODIS product + band + scale_factor match the live ORNL DAAC catalogue", {
   skip_if_no_oracle("MODISTools")
   facts <- terroir_external_facts()
 
@@ -32,6 +33,39 @@ test_that("MODIS product + band ids exist in the live ORNL DAAC catalogue", {
   band_asserted <- facts[source == "modis" & fact_family == "band_id",
                          asserted_value]
   expect_true(all(band_asserted %in% as.character(bands$band)))
+
+  # The asserted NDVI scale_factor must equal the authority's own band record
+  # (the silent-10,000x-error guard's grounding -- this is the value the
+  # adapter scales by). The 2026-06-13 grounding read it straight off mt_bands.
+  ndvi <- bands[as.character(bands$band) == "250m_16_days_NDVI", ]
+  skip_if(!nrow(ndvi) || !"scale_factor" %in% names(ndvi),
+          "ORNL DAAC band record carries no scale_factor field")
+  asserted_scale <- as.numeric(facts[source == "modis" &
+                                        fact_family == "scale_factor",
+                                      asserted_value])
+  expect_equal(as.numeric(ndvi$scale_factor[1]), asserted_scale)
+})
+
+test_that("NASA POWER variable codes exist in the live POWER parameter dictionary", {
+  testthat::skip_on_cran()
+  testthat::skip_if_offline()
+  skip_if_not_installed("httr2")
+  skip_if_not_installed("jsonlite")
+  facts <- terroir_external_facts()
+  codes <- facts[source == "nasapower" & fact_family == "nasapower_variable_code",
+                 asserted_value]
+
+  # The POWER system-manager parameter dictionary is the authority's own
+  # catalogue (power.larc.nasa.gov) -- the independent oracle the goldens are
+  # not. This is the same dictionary nasapower::query_parameters() wraps.
+  url <- paste0("https://power.larc.nasa.gov/api/system/manager/parameters",
+                "?community=ag&temporal=daily")
+  dict <- tryCatch({
+    resp <- httr2::req_perform(httr2::request(url))
+    jsonlite::fromJSON(httr2::resp_body_string(resp))
+  }, error = function(e) NULL)
+  skip_if(is.null(dict), "NASA POWER parameter dictionary unreachable")
+  expect_true(all(codes %in% names(dict)))
 })
 
 test_that("SILO variable codes are accepted by the weatherOz authority", {
@@ -80,15 +114,30 @@ test_that("ABARES AGFD layer names match the live data dictionary (opt-in)", {
                                 "AGFD grid:", paste(missing, collapse = ", ")))
 })
 
-test_that("the fact registry is internally well-formed and honest by default", {
+test_that("the fact registry is well-formed with mixed, honest grounding", {
   facts <- terroir_external_facts()
   expect_true(all(c("source", "fact_family", "asserted_value", "oracle_kind",
                     "verified_on", "evidence_path", "grounding") %in%
                   names(facts)))
-  # Seeds ship all-[unverified]: the registry must not claim a fact is grounded
-  # until an oracle has actually checked it.
-  expect_true(all(facts$grounding == "[unverified]"))
-  expect_true(all(is.na(facts$verified_on)))
+
+  # Grounding is mixed: MODIS (product / band / scale) and NASA POWER variable
+  # codes were diffed against their live authorities on 2026-06-13 and so carry
+  # a real verified_on; SILO, ABARES and STAC stay honestly [unverified] (NA).
+  grounded_src <- facts[grounding == "grounded",
+                        sort(unique(paste(source, fact_family)))]
+  expect_setequal(
+    grounded_src,
+    c("modis band_id", "modis product_id", "modis scale_factor",
+      "nasapower nasapower_variable_code")
+  )
+  # Every grounded fact has a non-NA Date; every [unverified] fact has NA. The
+  # registry must never claim a fact is grounded without a recorded date.
+  expect_true(all(!is.na(facts[grounding == "grounded", verified_on])))
+  expect_true(all(is.na(facts[grounding == "[unverified]", verified_on])))
+
+  # The still-ungrounded sources remain [unverified] -- not silently flipped.
+  ungrounded_src <- facts[grounding == "[unverified]", unique(source)]
+  expect_setequal(ungrounded_src, c("silo", "abares", "stac"))
 })
 
 test_that("the canonical recipe-52 registry matches the reader view (no drift)", {
@@ -107,14 +156,24 @@ test_that("the canonical recipe-52 registry matches the reader view (no drift)",
   }
 })
 
-test_that("the registry validator runs and honestly reports the un-grounded state", {
-  # terroir's facts are deliberately un-grounded (verified_on = NA) until the
-  # live catalogue-diff oracle records real dates. The canonical validator must
-  # therefore report every family as NOT passing -- the honest, machine-visible
-  # state (we do NOT fabricate a verified_on to force a green; that would be the
-  # exact hallucination the Independent Oracle Principle forbids).
+test_that("the registry validator reports the mixed grounding state per family", {
+  # Grounding is now mixed. The validator must PASS the families a real live
+  # oracle grounded on 2026-06-13 (MODIS product / band / scale, NASA POWER
+  # codes) and FAIL the ones still awaiting their oracle (SILO, ABARES, STAC)
+  # with the honest un-grounded reason. We never fabricate a verified_on to
+  # force a green -- that would be the exact hallucination the Independent
+  # Oracle Principle forbids; the NA families fail because they are genuinely
+  # un-checked.
   res <- terroir:::.validate_external_registry(terroir:::.external_facts,
                                                testthat::test_path())
-  expect_false(any(res$pass))
-  expect_true(all(grepl("un-grounded|verified_on", res$reason)))
+
+  grounded_fams <- c("product_id", "band_id", "scale_factor",
+                     "nasapower_variable_code")
+  ungrounded_fams <- c("variable_code", "renamed_column", "layer_name",
+                       "band_mapping")
+
+  expect_true(all(res$pass[res$family %in% grounded_fams]))
+  expect_false(any(res$pass[res$family %in% ungrounded_fams]))
+  expect_true(all(grepl("un-grounded|verified_on",
+                        res$reason[res$family %in% ungrounded_fams])))
 })

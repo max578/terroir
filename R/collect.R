@@ -15,15 +15,42 @@
 #' `collect_point()` performs network input/output, so it stamps `retrieved_at`
 #' with the current time by default; pass `retrieved_at` for reproducible runs.
 #'
+#' In **offline mode** (`offline = TRUE`, or globally via
+#' `options(terroir.offline = TRUE)`) the request is answered from a recorded
+#' fixture with no network egress at all: the matching cached series is replayed
+#' with its provenance marked `replayed = TRUE` and its original `retrieved_at`
+#' preserved (see [is_replayed()]). This lets a sovereign-coordinate trial run
+#' with zero upstream contact, and makes a pipeline reproducible bit-for-bit.
+#' When no recorded fixture answers the request, offline mode returns a
+#' structured refusal rather than silently falling back to the network. The
+#' fixture directory is the `terroir.fixture_dir` option if set, otherwise the
+#' installed package's `fixtures/` directory.
+#'
 #' @param request A `geo_point_request` from [geo_point_request()].
 #' @param retrieved_at Optional character scalar timestamp (provenance). Defaults
-#'   to the current time.
+#'   to the current time. Ignored in offline mode (a replayed series keeps the
+#'   fixture's recorded timestamp).
+#' @param offline Logical scalar. When `TRUE`, answer from a recorded fixture
+#'   with zero network egress (see Details). Defaults to the `terroir.offline`
+#'   option, otherwise `FALSE`.
 #' @return A `geo_point_series`, or a `terroir_refusal`.
-#' @seealso [geo_point_request()], [list_sources()], [verify_geo_series()]
+#' @seealso [geo_point_request()], [list_sources()], [verify_geo_series()],
+#'   [is_replayed()]
 #' @export
-collect_point <- function(request, retrieved_at = NULL) {
+collect_point <- function(request, retrieved_at = NULL,
+                          offline = getOption("terroir.offline", FALSE)) {
   if (!inherits(request, "geo_point_request")) {
     cli::cli_abort("{.arg request} must be a {.cls geo_point_request}.")
+  }
+  if (!is.logical(offline) || length(offline) != 1L || is.na(offline)) {
+    cli::cli_abort("{.arg offline} must be a single logical (TRUE or FALSE).")
+  }
+  if (isTRUE(offline)) {
+    series <- .collect_offline(request)
+    if (is_refusal(series)) return(series)
+    series <- .stamp_coarsen_provenance(series, request)
+    verify_geo_series(series)
+    return(series)
   }
   retrieved_at <- retrieved_at %||% as.character(Sys.time())
 
@@ -59,6 +86,27 @@ collect_point <- function(request, retrieved_at = NULL) {
 
   series <- entry$fun(request, retrieved_at = retrieved_at)
   if (is_refusal(series)) return(series)
+  series <- .stamp_coarsen_provenance(series, request)
   verify_geo_series(series)
+  series
+}
+
+# Record the coarsening policy onto a returned series' provenance. The adapter
+# sees only the (possibly coarsened) `lon`/`lat`, so the series itself never
+# carries the exact GPS; here we attach the policy and the raw-vs-sent
+# coordinates so the host keeps an auditable record of what was actually
+# transmitted. Backward-compatible: it only adds provenance fields, leaving the
+# 10-column C6 series schema untouched.
+.stamp_coarsen_provenance <- function(series, request) {
+  policy <- request$coarsen_policy %||% "none"
+  if (identical(policy, "none") && !isTRUE(request$sovereign)) return(series)
+  prov <- attr(series, "provenance")
+  prov$sovereign <- isTRUE(request$sovereign)
+  prov$coarsen_policy <- policy
+  prov$lon_raw <- request$lon_raw %||% request$lon
+  prov$lat_raw <- request$lat_raw %||% request$lat
+  prov$lon_sent <- request$lon
+  prov$lat_sent <- request$lat
+  data.table::setattr(series, "provenance", prov)
   series
 }

@@ -1,0 +1,21 @@
+# Hand-crafted CITATION for the terroir package. citEntry/bibentry fields are
+# written out so `citation("terroir")` renders a clean reference without a
+# generated meta block.
+
+citHeader("To cite the terroir package in publications, use:")
+
+bibentry(
+  bibtype  = "Manual",
+  title    = paste("terroir: A Uniform Geo-Point Interface for Free",
+                   "Environmental and Agricultural-Economics Data"),
+  author   = person("Max", "Moldovan",
+                    comment = c(ORCID = "0000-0001-9680-8474")),
+  year     = "2026",
+  note     = "R package, development version",
+  url      = "https://github.com/max578/terroir",
+  textVersion = paste(
+    "Moldovan, M. (2026). terroir: A Uniform Geo-Point Interface for Free",
+    "Environmental and Agricultural-Economics Data. R package,",
+    "development version. https://github.com/max578/terroir"
+  )
+)

@@ -11,7 +11,9 @@ geo_point_request(
   end = NULL,
   variables = NULL,
   source,
-  radius = NULL
+  radius = NULL,
+  sovereign = FALSE,
+  coarsen = NULL
 )
 }
 \arguments{
@@ -30,9 +32,27 @@ to let the adapter choose sensible defaults.}
 
 \item{radius}{Optional numeric. Search radius or buffer (kilometres) for
 nearest-station or grid sources; \code{NULL} for exact-point sources.}
+
+\item{sovereign}{Logical scalar. When \code{TRUE}, the point is treated as
+sensitive (a sovereign-data coordinate -- a grower's paddock, a trial site)
+and coarsening is applied by default so the exact GPS never leaves the host
+(see \code{coarsen}). Defaults to \code{FALSE}.}
+
+\item{coarsen}{Coordinate-coarsening policy applied to \code{lon}/\code{lat} \strong{before}
+any upstream call, so the exact coordinate is never transmitted. One of:
+\code{NULL} (no coarsening; the default for a non-sovereign point); a single
+positive number giving the rounding precision in degrees (for example
+\code{0.01} rounds to roughly a 1 km cell); or a \verb{list(grid = <size>)} snapping
+each coordinate to the nearest multiple of \verb{<size>} degrees. For a
+\code{sovereign = TRUE} point with \code{coarsen = NULL}, a default precision of
+\code{0.01} degrees is applied automatically. The request records \strong{both} the
+raw-requested coordinate and the coarsened-sent coordinate.}
 }
 \value{
-An object of class \code{geo_point_request}.
+An object of class \code{geo_point_request}. When coarsening is applied,
+\code{lon}/\code{lat} hold the coarsened coordinate (what is sent upstream) and
+\code{lon_raw}/\code{lat_raw} hold the exact requested coordinate (kept on the host
+for provenance); \code{coarsen_policy} records the policy as a string.
 }
 \description{
 Build a request for environmental or agricultural-economics data at a single
@@ -42,6 +62,10 @@ geographic point. The request is the input half of the constellation's C6
 \examples{
 geo_point_request(138.6, -34.92, "2020-01-01", "2020-01-31",
                   variables = c("T2M", "PRECTOTCORR"), source = "nasapower")
+
+# A sovereign point: the exact GPS is coarsened to ~1 km before any call.
+geo_point_request(138.63124, -34.92871, "2020-01-01", "2020-01-31",
+                  source = "nasapower", sovereign = TRUE)
 }
 \seealso{
 \code{\link[=collect_point]{collect_point()}}, \code{\link[=list_sources]{list_sources()}}

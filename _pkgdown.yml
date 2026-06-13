@@ -1,0 +1,41 @@
+url: https://github.com/max578/terroir
+
+template:
+  bootstrap: 5
+
+reference:
+  - title: Request and collect
+    desc: >
+      Build a point-keyed request and collect a provenance-stamped series
+      (the C6 geo_point_series contract). Offline replay reads recorded
+      fixtures with zero network egress.
+    contents:
+      - geo_point_request
+      - collect_point
+      - is_replayed
+  - title: The series contract
+    desc: >
+      Construct and verify a geo_point_series against the fixed C6 schema and
+      its mandatory provenance.
+    contents:
+      - new_geo_point_series
+      - verify_geo_series
+  - title: Source registry
+    desc: >
+      The free-only source registry and its structured refusals.
+    contents:
+      - register_source
+      - list_sources
+      - is_refusal
+  - title: External-fact grounding
+    desc: >
+      The Independent-Oracle-Principle registry: every asserted external fact,
+      the authority that grounds it, and the date it was last diffed.
+    contents:
+      - terroir_external_facts
+      - terroir_fact_status
+
+articles:
+  - title: Get started
+    contents:
+      - terroir

@@ -12,5 +12,6 @@
 utils::globalVariables(c(
   "YYYYMMDD", "date", "variable", "value", "lon", "lat", "unit",
   "source", "source_version", "retrieved_at", "license", "calendar_date",
-  ".", ":="
+  "verified_on", "grounding", "fact_family", "evidence_path", "asserted_value",
+  ".", ".N", ":="
 ))

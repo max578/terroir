@@ -56,6 +56,64 @@ series                 # a geo_point_series: tidy data.table + provenance
 attr(series, "provenance")
 ```
 
+## Offline replay (zero network)
+
+`terroir` ships a small set of recorded fixtures, one per CORE source. Passing
+`offline = TRUE` answers a request from the matching fixture with no network
+egress at all -- useful for a reproducible pipeline, for a continuous-integration
+run, and (with coarsening, below) for a sovereign coordinate that must never
+reach an upstream service. A replayed series carries `replayed = TRUE` in its
+provenance and keeps the recording's `retrieved_at`, so a consumer can always
+tell a cached series from a live one.
+
+```{r}
+offline_req <- geo_point_request(
+  lon = 138.6, lat = -34.92,
+  start = "2020-01-01", end = "2020-01-10",
+  variables = c("T2M", "PRECTOTCORR"),
+  source = "nasapower"
+)
+series <- collect_point(offline_req, offline = TRUE)
+is_replayed(series)
+attr(series, "provenance")$retrieved_at   # the fixture's stamp, not now
+head(series, 3)
+```
+
+Offline mode needs none of the source packages installed: it reads `.rds`
+fixtures and never touches an adapter. When no recorded fixture answers a
+request, offline mode returns a structured refusal rather than silently falling
+back to the network -- the zero-egress guarantee is absolute. You can point
+`terroir` at your own directory of recorded fixtures with
+`options(terroir.fixture_dir = "/path/to/fixtures")`, or switch the whole
+session offline with `options(terroir.offline = TRUE)`.
+
+## Sovereign coordinates (coarsening)
+
+A grower's exact paddock GPS is sensitive. When a point is flagged
+`sovereign = TRUE`, `terroir` coarsens the coordinate to roughly a one-kilometre
+cell **before** any upstream call, so the exact location never leaves the host.
+Both the raw-requested and the coarsened-sent coordinate are recorded in
+provenance -- the host keeps the full record, the upstream service sees only the
+coarsened point.
+
+```{r}
+sovereign_req <- geo_point_request(
+  lon = 138.63124, lat = -34.92871,   # an exact paddock GPS
+  start = "2020-01-01", end = "2020-01-31",
+  source = "nasapower",
+  sovereign = TRUE                    # coarsening on by default
+)
+sovereign_req       # prints both the raw and the coarsened (sent) point
+```
+
+Coarsening is also available for a non-sovereign point via the `coarsen`
+argument: a single number rounds to that many degrees of precision (for example
+`coarsen = 0.01` for a ~1 km cell), and `coarsen = list(grid = 0.25)` snaps each
+coordinate to the nearest quarter-degree grid node. The returned series'
+provenance gains `sovereign`, `coarsen_policy`, and the raw-vs-sent coordinates;
+the fixed ten-column series schema is unchanged, so a consumer reading those
+columns is unaffected.
+
 The returned `geo_point_series` always has the same fixed columns --
 
 ```{r}
