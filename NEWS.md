@@ -1,4 +1,4 @@
-# terroir 0.1.0.9000 (development)
+# terroir 0.1.0
 
 * **User-facing offline / fixture-replay mode.** `collect_point(req, offline =
   TRUE)` (or `options(terroir.offline = TRUE)`) answers a request from a
