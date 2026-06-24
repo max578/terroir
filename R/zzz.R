@@ -14,5 +14,10 @@
                   "MODIS NDVI/EVI 16-day (ORNL DAAC); point pixel")
   register_source("stac", .adapter_rsi, "rsi", TRUE,
                   "Sentinel-2 NDVI via Planetary Computer; point")
+  register_source("nert", .adapter_nert, "nert", TRUE,
+                  paste("TERN soil / soil-moisture (SMIPS) / AET / canopy /",
+                        "phenology (Australia) point extract via nert (AAGI-AUS);",
+                        "free TERN API key"),
+                  extent = au_bbox)
   invisible()
 }

@@ -227,3 +227,95 @@
     call = "rsi::get_sentinel2_imagery(point buffer) -> NDVI"
   )
 }
+
+# nert / TERN -- Australian soil, soil-moisture (SMIPS), AET, canopy height and
+# phenology, point-extracted from TERN's COGs via nert (AAGI-AUS). Free TERN API
+# key (an email registration). Australia-only (the `au_bbox` extent at
+# registration refuses an out-of-coverage point before this adapter runs).
+#
+# IOP NOTE. nert is the flagship co-hallucinated-oracle case (nert 1.0.0 shipped
+# test-passing FABRICATIONS about TERN's data products). We deliberately consume
+# the REVIEWED nert 1.1.0, and we do not trust it blindly: (1) the *values* are
+# real `terra::extract()` reads of TERN COGs and nert 1.1.0 returns NA (never a
+# fabricated number) on a failed COG, so we keep only finite values and refuse an
+# all-NA return rather than emit blanks; (2) the *facts* terroir asserts about
+# TERN's catalogue (the dataset ids) are registered in `terroir_external_facts`
+# as honestly `[unverified]` -- their independent oracle is the TERN authority
+# directly, which terroir has not yet diffed in a recorded session (using nert's
+# OWN grounding would be the co-referential trap nert taught us). A character
+# class layer (e.g. ASC soil-order) has no numeric point value and is dropped,
+# never coerced.
+.adapter_nert <- function(request, retrieved_at) {
+  # TERN needs a free API key. Read the env var directly (non-interactive-safe)
+  # rather than nert::get_key(), which aborts/prompts when the key is unset.
+  key <- Sys.getenv("TERN_API_KEY", unset = "")
+  if (!nzchar(key)) {
+    return(.refuse(
+      paste("nert/TERN needs a free TERN API key; set TERN_API_KEY",
+            "(request one via nert::get_key())"),
+      "nert", warn = FALSE
+    ))
+  }
+  if (is.null(request$start) || is.null(request$end)) {
+    return(.refuse("nert needs start and end dates", "nert", warn = FALSE))
+  }
+  datasets <- request$variables %||% "SMIPS"
+  dates <- tryCatch(
+    seq(as.Date(request$start), as.Date(request$end), by = "day"),
+    error = function(e) e
+  )
+  if (inherits(dates, "error")) {
+    return(.refuse(paste("nert: bad date range:", conditionMessage(dates)),
+                   "nert", warn = FALSE))
+  }
+  out <- tryCatch(
+    nert::collect_tern_data(
+      date_range = dates, lon = request$lon, lat = request$lat,
+      datasets = datasets, api_key = key, verbose = FALSE, na.rm = FALSE
+    ),
+    error = function(e) e
+  )
+  if (inherits(out, "error")) {
+    return(.refuse(paste("nert collect_tern_data failed:", conditionMessage(out)),
+                   "nert", warn = FALSE))
+  }
+  out <- data.table::as.data.table(out)
+  idc <- intersect(c("date", "lon", "lat"), names(out))
+  meas <- setdiff(names(out), idc)
+  # IOP: only numeric point-series layers; a character-class layer (ASC) carries
+  # no numeric value and is dropped, not coerced into a silent NA.
+  num_meas <- meas[vapply(meas, function(cl) is.numeric(out[[cl]]), logical(1))]
+  if (!length(num_meas) || !"date" %in% names(out)) {
+    return(.refuse(
+      paste0("nert returned no numeric point layers for dataset(s) ",
+             paste(datasets, collapse = ", "),
+             " (character-class layers such as ASC are not numeric series)"),
+      "nert", warn = FALSE
+    ))
+  }
+  long <- data.table::melt(
+    out, id.vars = "date", measure.vars = num_meas,
+    variable.name = "variable", value.name = "value", variable.factor = FALSE
+  )
+  long <- long[, .(date = as.Date(date), variable, value = as.numeric(value),
+                   unit = NA_character_)]
+  long <- long[is.finite(value)]
+  # nert returns NA (never a fabricated number) when a COG fetch fails; an all-NA
+  # return means no real coverage at this point/date -- refuse, do not emit blanks.
+  if (!nrow(long)) {
+    return(.refuse(
+      "nert returned only NA at this point/date (COG fetch failed or no coverage)",
+      "nert", warn = FALSE
+    ))
+  }
+  new_geo_point_series(
+    long, lon = request$lon, lat = request$lat, source = "nert",
+    source_version = utils::packageVersion("nert"),
+    license = "TERN (CC BY 4.0); via nert (AAGI-AUS)", retrieved_at = retrieved_at,
+    call = sprintf(
+      "nert::collect_tern_data(lon=%g, lat=%g, datasets=c(%s), date_range='%s'..'%s')",
+      request$lon, request$lat, paste(datasets, collapse = ","),
+      request$start, request$end
+    )
+  )
+}

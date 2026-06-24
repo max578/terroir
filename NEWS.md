@@ -1,3 +1,19 @@
+# terroir 0.2.0
+
+* **New source: nert / TERN (`source = "nert"`).** Point-extracts TERN's
+  Australian soil, soil-moisture (SMIPS), actual-evapotranspiration, canopy-height
+  and phenology layers via the `nert` package (AAGI-AUS), behind the standard
+  request/response contract (free TERN API key; Australia extent; refuses keyless
+  or out-of-coverage). **Independent-Oracle discipline:** nert is the flagship
+  co-hallucinated-oracle case, so terroir consumes the *reviewed* nert 1.1.0 and
+  does not trust it blindly -- only finite COG values are emitted (an all-NA return
+  is refused, never blanked; a character-class layer such as ASC soil-order is
+  dropped, not coerced), and the TERN dataset-id facts terroir asserts are
+  registered in `terroir_external_facts()` as honestly `[unverified]` (their oracle
+  is the TERN catalogue directly -- not nert's own grounding -- and has not yet
+  been diffed in a recorded session). `nert` is a `Suggests` (+ `Remotes:
+  AAGI-AUS/nert`).
+
 # terroir 0.1.0
 
 * **User-facing offline / fixture-replay mode.** `collect_point(req, offline =

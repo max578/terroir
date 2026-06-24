@@ -1,6 +1,6 @@
 Package: terroir
 Title: Geo-Point Environmental and Agricultural-Economics Data Collector
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person("Max", "Moldovan", , "max.moldovan@adelaide.edu.au",
            role = c("aut", "cre", "cph"),
@@ -29,6 +29,7 @@ Suggests:
     knitr,
     MODISTools,
     nasapower,
+    nert,
     read.abares,
     rmarkdown,
     rsi,
@@ -40,5 +41,7 @@ Suggests:
     withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
+Remotes:
+    AAGI-AUS/nert
 URL: https://github.com/max578/terroir
 BugReports: https://github.com/max578/terroir/issues

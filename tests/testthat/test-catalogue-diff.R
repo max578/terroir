@@ -136,8 +136,10 @@ test_that("the fact registry is well-formed with mixed, honest grounding", {
   expect_true(all(is.na(facts[grounding == "[unverified]", verified_on])))
 
   # The still-ungrounded sources remain [unverified] -- not silently flipped.
+  # nert (TERN) joins them: its facts' oracle is the TERN catalogue directly,
+  # which has not yet been diffed in a recorded session, so it stays honest.
   ungrounded_src <- facts[grounding == "[unverified]", unique(source)]
-  expect_setequal(ungrounded_src, c("silo", "abares", "stac"))
+  expect_setequal(ungrounded_src, c("silo", "abares", "stac", "nert"))
 })
 
 test_that("the canonical recipe-52 registry matches the reader view (no drift)", {

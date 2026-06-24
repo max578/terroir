@@ -80,7 +80,15 @@
     data.frame(source = "stac", fact_family = "band_mapping",
                asserted_value = c("N=B08", "R=B04"),
                oracle_kind = "upstream_package", verified_on = as.Date(NA),
-               stringsAsFactors = FALSE)
+               stringsAsFactors = FALSE),
+    # nert / TERN. The dataset id terroir requests from nert. Its independent
+    # oracle is the TERN catalogue (the authority that owns it), NOT nert's own
+    # grounding (that would be the co-referential trap nert 1.0.0 taught us), and
+    # terroir has not yet diffed it in a recorded session -- so it is honestly
+    # `[unverified]` (verified_on = NA), never grounded by trusting the source.
+    data.frame(source = "nert", fact_family = "tern_dataset_id",
+               asserted_value = "SMIPS", oracle_kind = "live_catalogue",
+               verified_on = as.Date(NA), stringsAsFactors = FALSE)
   )
   out <- data.table::rbindlist(rows)
   out[, evidence_path := NA_character_]
@@ -156,15 +164,19 @@ terroir_fact_status <- function() {
 # ---------------------------------------------------------------------------
 .external_facts <- data.frame(
   family = c("product_id", "band_id", "scale_factor", "nasapower_variable_code",
-             "variable_code", "renamed_column", "layer_name", "band_mapping"),
+             "variable_code", "renamed_column", "layer_name", "band_mapping",
+             "tern_dataset_id"),
   fact_id = c("modis.product_id", "modis.band_id", "modis.scale_factor",
               "nasapower.variable_code", "silo.variable_code",
-              "silo.renamed_column", "abares.layer_name", "stac.band_mapping"),
-  kind = c("locator", "enum", "units", "enum", "enum", "enum", "enum", "enum"),
+              "silo.renamed_column", "abares.layer_name", "stac.band_mapping",
+              "nert.tern_dataset_id"),
+  kind = c("locator", "enum", "units", "enum", "enum", "enum", "enum", "enum",
+           "enum"),
   value = c(
     "MOD13Q1", "250m_16_days_NDVI", "0.0001", "T2M, PRECTOTCORR",
     "max_temp, min_temp, rain", "air_tmax, air_tmin, rainfall",
-    paste(.TERROIR_ABARES_LAYERS, collapse = ", "), "N=B08, R=B04"),
+    paste(.TERROIR_ABARES_LAYERS, collapse = ", "), "N=B08, R=B04",
+    "SMIPS"),
   source = c(
     "NASA LP DAAC MODIS MOD13Q1 product (ORNL DAAC MODISTools::mt_products)",
     "NASA LP DAAC MOD13Q1 band list (ORNL DAAC MODISTools::mt_bands)",
@@ -173,13 +185,16 @@ terroir_fact_status <- function() {
     "SILO climate variable codes (Qld DES SILO API / upstream interface)",
     "SILO -> terroir column rename map (SILO variable documentation)",
     "ABARES AAGIS farm-data layer dictionary",
-    "Sentinel-2 band designations (ESA/Copernicus; STAC asset keys)"),
+    "Sentinel-2 band designations (ESA/Copernicus; STAC asset keys)",
+    "TERN data catalogue / STAC (the authority; via nert, AAGI-AUS) -- not yet diffed in a recorded session"),
   verified_on = c(
     "2026-06-13", "2026-06-13", "2026-06-13", "2026-06-13",
-    NA_character_, NA_character_, NA_character_, NA_character_),
+    NA_character_, NA_character_, NA_character_, NA_character_,
+    NA_character_),
   reverify_by = c("stable", "stable", "literature", "stable", "stable",
-                  "stable", "stable", "literature"),
-  oracle_types = c("A,B", "B,E", "A,D", "B,E", "B,E", "B,E", "B,E", "B,E"),
+                  "stable", "stable", "literature", "stable"),
+  oracle_types = c("A,B", "B,E", "A,D", "B,E", "B,E", "B,E", "B,E", "B,E",
+                   "B,E"),
   signoff = NA_character_,
   stringsAsFactors = FALSE)
 
