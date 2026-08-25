@@ -19,6 +19,18 @@
 * **Continuous integration.** Added `R-CMD-check` (macOS / Windows / Ubuntu,
   release/devel/oldrel-1) -- the fixture-replay tests need no network and no
   keys, so the whole suite runs clean-room on every push/PR to `main`.
+* **New `geo_point_schema()`.** Exports the fixed ten-column C6 response
+  schema, so a sibling package can read the contract's column order instead
+  of reaching into the internal `terroir:::.geo_point_cols`.
+* **Documentation pass.** The vignette now gains a small-multiple figure of a
+  replayed series (temperature and precipitation panels, captioned and
+  interpreted), lists `nert` in the sources table, drops the stale
+  "flexyBayes constellation" framing (now "the ORCHESTRA", also fixed in
+  `DESCRIPTION` and `README.md`), and states plainly that `unit` is not yet
+  populated for the `nasapower`/`silo`/`abares` adapters. README rewritten
+  with an install section, a runnable offline example, and a corrected
+  Status/Sources section (was stale at v0.0.0.9000). `collect_point()`,
+  `verify_geo_series()` and `register_source()` gained `@examples`.
 
 # terroir 0.2.0
 
