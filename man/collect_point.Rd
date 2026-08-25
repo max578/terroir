@@ -22,7 +22,10 @@ with zero network egress (see Details). Defaults to the \code{terroir.offline}
 option, otherwise \code{FALSE}.}
 }
 \value{
-A \code{geo_point_series}, or a \code{terroir_refusal}.
+A \code{geo_point_series}, or a \code{terroir_refusal} -- including when the
+returned values fail the value-plausibility conformer (an implausible
+NDVI/EVI or temperature reading), which is refused rather than aborted so
+one bad cell does not stop a multi-site collection.
 }
 \description{
 The single entry point of the C6 contract. Dispatches a

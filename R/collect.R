@@ -33,7 +33,10 @@
 #' @param offline Logical scalar. When `TRUE`, answer from a recorded fixture
 #'   with zero network egress (see Details). Defaults to the `terroir.offline`
 #'   option, otherwise `FALSE`.
-#' @return A `geo_point_series`, or a `terroir_refusal`.
+#' @return A `geo_point_series`, or a `terroir_refusal` -- including when the
+#'   returned values fail the value-plausibility conformer (an implausible
+#'   NDVI/EVI or temperature reading), which is refused rather than aborted so
+#'   one bad cell does not stop a multi-site collection.
 #' @seealso [geo_point_request()], [list_sources()], [verify_geo_series()],
 #'   [is_replayed()]
 #' @export
@@ -49,8 +52,7 @@ collect_point <- function(request, retrieved_at = NULL,
     series <- .collect_offline(request)
     if (is_refusal(series)) return(series)
     series <- .stamp_coarsen_provenance(series, request)
-    verify_geo_series(series)
-    return(series)
+    return(.verify_or_refuse(series, request$source))
   }
   retrieved_at <- retrieved_at %||% as.character(Sys.time())
 
@@ -87,6 +89,19 @@ collect_point <- function(request, retrieved_at = NULL,
   series <- entry$fun(request, retrieved_at = retrieved_at)
   if (is_refusal(series)) return(series)
   series <- .stamp_coarsen_provenance(series, request)
+  .verify_or_refuse(series, request$source)
+}
+
+# Verify a series against contract C6, but turn a value-plausibility failure
+# into a typed `terroir_refusal` instead of letting it abort the call (T-06):
+# one implausible cell in a multi-site collection must not abort the whole
+# collection -- it is exactly the kind of "assumptions not met" outcome the
+# constellation refusal pattern exists for. Schema and provenance defects stay
+# hard aborts (they are internal contract violations, not upstream-data
+# problems), and `verify_geo_series()` itself is unchanged for direct callers.
+.verify_or_refuse <- function(series, source) {
+  bad <- .check_value_ranges(series)
+  if (!is.null(bad)) return(.refuse(bad, source = source))
   verify_geo_series(series)
   series
 }
