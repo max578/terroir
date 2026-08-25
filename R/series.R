@@ -11,6 +11,21 @@
 # Required provenance fields on every series.
 .geo_point_prov <- c("source", "source_version", "retrieved_at", "license", "call")
 
+#' The fixed C6 response schema
+#'
+#' Returns the ten column names every [geo_point_series][new_geo_point_series]
+#' carries, in contract order. Column order is part of contract C6, so a
+#' sibling package typing against terroir's output should read the schema from
+#' here rather than hard-coding it.
+#'
+#' @return A character vector of column names.
+#' @examples
+#' geo_point_schema()
+#' @export
+geo_point_schema <- function() {
+  .geo_point_cols
+}
+
 #' Build a `geo_point_series` from a long-format table
 #'
 #' Adapter-facing constructor. Coerces a long table to the fixed C6 schema,
@@ -56,6 +71,15 @@ new_geo_point_series <- function(dt, lon, lat, source, source_version,
 #'
 #' @param x An object to verify.
 #' @return Invisibly `TRUE` on success; otherwise an error.
+#' @examples
+#' req <- geo_point_request(
+#'   lon = 138.6, lat = -34.92,
+#'   start = "2020-01-01", end = "2020-01-10",
+#'   variables = c("T2M", "PRECTOTCORR"),
+#'   source = "nasapower"
+#' )
+#' series <- collect_point(req, offline = TRUE)
+#' verify_geo_series(series)
 #' @export
 verify_geo_series <- function(x) {
   if (!inherits(x, "geo_point_series")) {
