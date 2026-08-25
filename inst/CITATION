@@ -11,11 +11,11 @@ bibentry(
   author   = person("Max", "Moldovan",
                     comment = c(ORCID = "0000-0001-9680-8474")),
   year     = "2026",
-  note     = "R package, development version",
+  note     = "R package version 0.2.0 (development version)",
   url      = "https://github.com/max578/terroir",
   textVersion = paste(
     "Moldovan, M. (2026). terroir: A Uniform Geo-Point Interface for Free",
-    "Environmental and Agricultural-Economics Data. R package,",
-    "development version. https://github.com/max578/terroir"
+    "Environmental and Agricultural-Economics Data. R package version 0.2.0",
+    "(development version). https://github.com/max578/terroir"
   )
 )
