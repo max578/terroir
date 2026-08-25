@@ -37,6 +37,21 @@
 #'   returned values fail the value-plausibility conformer (an implausible
 #'   NDVI/EVI or temperature reading), which is refused rather than aborted so
 #'   one bad cell does not stop a multi-site collection.
+#' @examples
+#' req <- geo_point_request(
+#'   lon = 138.6, lat = -34.92,
+#'   start = "2020-01-01", end = "2020-01-10",
+#'   variables = c("T2M", "PRECTOTCORR"),
+#'   source = "nasapower"
+#' )
+#' # offline = TRUE answers from the shipped fixture -- no network egress
+#' series <- collect_point(req, offline = TRUE)
+#' series
+#' is_replayed(series)
+#'
+#' # an unknown source returns a structured refusal, never an error
+#' out <- collect_point(geo_point_request(0, 0, source = "not_a_source"))
+#' is_refusal(out)
 #' @seealso [geo_point_request()], [list_sources()], [verify_geo_series()],
 #'   [is_replayed()]
 #' @export

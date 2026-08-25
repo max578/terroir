@@ -49,6 +49,22 @@ structured refusal rather than silently falling back to the network. The
 fixture directory is the \code{terroir.fixture_dir} option if set, otherwise the
 installed package's \verb{fixtures/} directory.
 }
+\examples{
+req <- geo_point_request(
+  lon = 138.6, lat = -34.92,
+  start = "2020-01-01", end = "2020-01-10",
+  variables = c("T2M", "PRECTOTCORR"),
+  source = "nasapower"
+)
+# offline = TRUE answers from the shipped fixture -- no network egress
+series <- collect_point(req, offline = TRUE)
+series
+is_replayed(series)
+
+# an unknown source returns a structured refusal, never an error
+out <- collect_point(geo_point_request(0, 0, source = "not_a_source"))
+is_refusal(out)
+}
 \seealso{
 \code{\link[=geo_point_request]{geo_point_request()}}, \code{\link[=list_sources]{list_sources()}}, \code{\link[=verify_geo_series]{verify_geo_series()}},
 \code{\link[=is_replayed]{is_replayed()}}
