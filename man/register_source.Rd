@@ -33,3 +33,16 @@ Invisibly, the registered \code{id}.
 Adds a source adapter to the registry. Enforces the data-collector role's
 \strong{free-only} rule: an adapter that does not reach a free source is refused.
 }
+\examples{
+toy_adapter <- function(request, retrieved_at) {
+  dt <- data.frame(date = request$start, variable = "toy", value = 1)
+  new_geo_point_series(
+    dt, lon = request$lon, lat = request$lat,
+    source = "toy", source_version = "1.0", license = "CC0",
+    retrieved_at = retrieved_at, call = "toy_adapter()"
+  )
+}
+register_source("toy", toy_adapter, package = "base", free = TRUE,
+                 description = "Illustrative in-memory adapter")
+"toy" \%in\% list_sources()$id
+}

@@ -50,8 +50,7 @@ geo_point_request(
   lon, lat,                 # WGS84 decimal degrees (EPSG:4326)
   start, end,               # ISO-8601 dates; ignored by static layers
   variables,                # character vector of canonical variable names
-  source,                   # one registered adapter id (see registry)
-  radius = NULL             # optional: nearest-station / buffer for grid/station sources
+  source                    # one registered adapter id (see registry)
 )
 ```
 

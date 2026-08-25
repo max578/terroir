@@ -17,8 +17,6 @@
 #'   to let the adapter choose sensible defaults.
 #' @param source Character scalar. The id of one registered source adapter (see
 #'   [list_sources()]).
-#' @param radius Optional numeric. Search radius or buffer (kilometres) for
-#'   nearest-station or grid sources; `NULL` for exact-point sources.
 #' @param sovereign Logical scalar. When `TRUE`, the point is treated as
 #'   sensitive (a sovereign-data coordinate -- a grower's paddock, a trial site)
 #'   and coarsening is applied by default so the exact GPS never leaves the host
@@ -47,7 +45,7 @@
 #' geo_point_request(138.63124, -34.92871, "2020-01-01", "2020-01-31",
 #'                   source = "nasapower", sovereign = TRUE)
 geo_point_request <- function(lon, lat, start = NULL, end = NULL,
-                              variables = NULL, source, radius = NULL,
+                              variables = NULL, source,
                               sovereign = FALSE, coarsen = NULL) {
   if (!is.numeric(lon) || length(lon) != 1L || !is.finite(lon) ||
       lon < -180 || lon > 180) {
@@ -62,10 +60,6 @@ geo_point_request <- function(lon, lat, start = NULL, end = NULL,
   }
   if (!is.null(variables) && !is.character(variables)) {
     cli::cli_abort("{.arg variables} must be a character vector or NULL.")
-  }
-  if (!is.null(radius) &&
-      (!is.numeric(radius) || length(radius) != 1L || radius < 0)) {
-    cli::cli_abort("{.arg radius} must be a single non-negative number or NULL.")
   }
   if (!is.logical(sovereign) || length(sovereign) != 1L || is.na(sovereign)) {
     cli::cli_abort("{.arg sovereign} must be a single logical (TRUE or FALSE).")
@@ -84,7 +78,6 @@ geo_point_request <- function(lon, lat, start = NULL, end = NULL,
       start = start, end = end,
       variables = variables,
       source = source,
-      radius = radius,
       sovereign = sovereign,
       coarsen_policy = coarse$policy
     ),

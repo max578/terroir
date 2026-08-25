@@ -11,7 +11,6 @@ geo_point_request(
   end = NULL,
   variables = NULL,
   source,
-  radius = NULL,
   sovereign = FALSE,
   coarsen = NULL
 )
@@ -29,9 +28,6 @@ to let the adapter choose sensible defaults.}
 
 \item{source}{Character scalar. The id of one registered source adapter (see
 \code{\link[=list_sources]{list_sources()}}).}
-
-\item{radius}{Optional numeric. Search radius or buffer (kilometres) for
-nearest-station or grid sources; \code{NULL} for exact-point sources.}
 
 \item{sovereign}{Logical scalar. When \code{TRUE}, the point is treated as
 sensitive (a sovereign-data coordinate -- a grower's paddock, a trial site)

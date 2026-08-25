@@ -19,8 +19,8 @@ agricultural-economics data **for a single geographic point** from many free
 sources, behind one uniform contract. You build a request, choose a source, and
 get back a tidy, provenance-stamped series.
 
-It is the data-collector member of the flexyBayes constellation: a *producer*
-that feeds covariates and forcings to downstream modelling. Every source is an
+It is the data-collector member of the ORCHESTRA: a *producer* that feeds
+covariates and forcings to downstream modelling. Every source is an
 optional adapter, so terroir installs and works with none of the source packages
 present (a missing source yields a structured refusal, not an error).
 
@@ -87,6 +87,28 @@ back to the network -- the zero-egress guarantee is absolute. You can point
 `options(terroir.fixture_dir = "/path/to/fixtures")`, or switch the whole
 session offline with `options(terroir.offline = TRUE)`.
 
+A `geo_point_series` is long (one row per date x variable), so plotting it as
+small multiples -- one panel per variable, sharing the date axis -- is the
+natural way to look at what a collector call actually returned.
+
+```{r, fig.cap = "Adelaide, 1-10 January 2020, replayed from the shipped NASA POWER fixture: daily mean air temperature at 2 m (top) and daily precipitation (bottom). No network call was made to produce this figure."}
+vars <- unique(series$variable)
+op <- par(mfrow = c(length(vars), 1), mar = c(3, 4, 2, 1))
+for (v in vars) {
+  sub <- series[series$variable == v, ]
+  plot(as.Date(sub$date), sub$value, type = "b", pch = 16,
+       xlab = "", ylab = paste0(v, " (", sub$unit[1], ")"), main = v)
+}
+par(op)
+```
+
+Temperature swings from 15.5 to 31.06 degC across the ten days -- a
+day-to-day range typical of Adelaide midsummer once a front moves through --
+while precipitation is essentially dry (two days record a trace, 0.03 and
+0.06 mm; the rest are zero). A collector that returned a flat temperature
+line or a wet run of days here would be the signal to distrust the fixture
+before trusting anything built on top of it.
+
 ## Sovereign coordinates (coarsening)
 
 A grower's exact paddock GPS is sensitive. When a point is flagged
@@ -114,16 +136,20 @@ provenance gains `sovereign`, `coarsen_policy`, and the raw-vs-sent coordinates;
 the fixed ten-column series schema is unchanged, so a consumer reading those
 columns is unaffected.
 
-The returned `geo_point_series` always has the same fixed columns --
+The returned `geo_point_series` always has the same fixed columns, readable
+from the exported schema accessor --
 
 ```{r}
-terroir:::.geo_point_cols
+geo_point_schema()
 ```
 
--- with the units column and a mandatory provenance attribute (source, version,
-retrieval time, licence, the exact upstream call). `verify_geo_series()` checks
-all of that and fails loudly if anything is missing, so a malformed series never
-flows downstream silently.
+-- plus a mandatory provenance attribute (source, version, retrieval time,
+licence, the exact upstream call). The `unit` column is part of the contract
+but is not yet populated by every adapter: `nasapower`, `silo` and `abares`
+currently emit `NA_character_` there, while `modis` and `stac` set `"index"`.
+`verify_geo_series()` checks the schema and the provenance fields and fails
+loudly if either is missing, so a malformed series never flows downstream
+silently -- but it does not yet warn on an all-`NA` `unit` column.
 
 ## Graceful refusal
 
@@ -145,6 +171,7 @@ out
 | `abares` | read.abares | Australian gridded farm economics |
 | `modis` | MODISTools | MODIS NDVI/EVI |
 | `stac` | rsi | Sentinel-2 NDVI via Planetary Computer |
+| `nert` | nert (AAGI-AUS) | TERN soil, soil-moisture, AET, canopy height, phenology (Australia; free key) |
 
-More sources (GSODR, geodata, chirps, nert) are enrolled in the constellation and
-land as adapters in subsequent releases.
+GSODR, geodata (WorldClim + SoilGrids + elevation) and chirps are enrolled in
+the ORCHESTRA and land as adapters in a future release.

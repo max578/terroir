@@ -6,7 +6,7 @@
 \alias{terroir-package}
 \title{terroir: Geo-Point Environmental and Agricultural-Economics Data Collector}
 \description{
-A uniform, point-keyed interface for retrieving climate, weather, vegetation-index, soil, elevation and agricultural-economics data for a geographic coordinate from many free data sources. Each source is wrapped as an optional adapter behind one request and response contract with mandatory provenance; the package builds and checks with no source package installed. The data-collector member of the flexyBayes constellation.
+A uniform, point-keyed interface for retrieving climate, weather, vegetation-index, soil, elevation and agricultural-economics data for a geographic coordinate from many free data sources. Each source is wrapped as an optional adapter behind one request and response contract with mandatory provenance; the package builds and checks with no source package installed. The data-collector member of the ORCHESTRA.
 }
 \seealso{
 Useful links:

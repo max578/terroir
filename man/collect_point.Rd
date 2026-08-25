@@ -22,7 +22,10 @@ with zero network egress (see Details). Defaults to the \code{terroir.offline}
 option, otherwise \code{FALSE}.}
 }
 \value{
-A \code{geo_point_series}, or a \code{terroir_refusal}.
+A \code{geo_point_series}, or a \code{terroir_refusal} -- including when the
+returned values fail the value-plausibility conformer (an implausible
+NDVI/EVI or temperature reading), which is refused rather than aborted so
+one bad cell does not stop a multi-site collection.
 }
 \description{
 The single entry point of the C6 contract. Dispatches a
@@ -45,6 +48,22 @@ When no recorded fixture answers the request, offline mode returns a
 structured refusal rather than silently falling back to the network. The
 fixture directory is the \code{terroir.fixture_dir} option if set, otherwise the
 installed package's \verb{fixtures/} directory.
+}
+\examples{
+req <- geo_point_request(
+  lon = 138.6, lat = -34.92,
+  start = "2020-01-01", end = "2020-01-10",
+  variables = c("T2M", "PRECTOTCORR"),
+  source = "nasapower"
+)
+# offline = TRUE answers from the shipped fixture -- no network egress
+series <- collect_point(req, offline = TRUE)
+series
+is_replayed(series)
+
+# an unknown source returns a structured refusal, never an error
+out <- collect_point(geo_point_request(0, 0, source = "not_a_source"))
+is_refusal(out)
 }
 \seealso{
 \code{\link[=geo_point_request]{geo_point_request()}}, \code{\link[=list_sources]{list_sources()}}, \code{\link[=verify_geo_series]{verify_geo_series()}},

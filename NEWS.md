@@ -1,3 +1,37 @@
+# terroir (development version)
+
+* **`collect_points()`: batch/panel collection over a list of requests.** The
+  fleet-audit-named batch verb (T-11): dispatches each request through
+  [collect_point()] and stacks the results into one `data.table`, tagged with
+  a `request_index` and a `status` (`"ok"`/`"refused"`) column. A refusal is
+  kept as a row (with its reason recorded), never dropped from the stack, so
+  a multi-site collection still accounts for every request it was given.
+* **Refusal, not abort, on an implausible value.** `collect_point()`'s
+  value-plausibility conformer (out-of-range NDVI/EVI or temperature) now
+  returns a structured `terroir_refusal` instead of aborting the call, so one
+  bad cell no longer stops a whole collection. `verify_geo_series()` called
+  directly is unchanged and still aborts.
+* **Removed the inert `radius` formal from `geo_point_request()`.** It was
+  documented, validated and stored, but read by no adapter -- no registered
+  source implements a nearest-station or buffer search today. Reintroduce it
+  (on the SILO/GSOD nearest-station path) if/when such a source is added.
+  Breaking for any caller passing `radius = `.
+* **Continuous integration.** Added `R-CMD-check` (macOS / Windows / Ubuntu,
+  release/devel/oldrel-1) -- the fixture-replay tests need no network and no
+  keys, so the whole suite runs clean-room on every push/PR to `main`.
+* **New `geo_point_schema()`.** Exports the fixed ten-column C6 response
+  schema, so a sibling package can read the contract's column order instead
+  of reaching into the internal `terroir:::.geo_point_cols`.
+* **Documentation pass.** The vignette now gains a small-multiple figure of a
+  replayed series (temperature and precipitation panels, captioned and
+  interpreted), lists `nert` in the sources table, drops the stale
+  "flexyBayes constellation" framing (now "the ORCHESTRA", also fixed in
+  `DESCRIPTION` and `README.md`), and states plainly that `unit` is not yet
+  populated for the `nasapower`/`silo`/`abares` adapters. README rewritten
+  with an install section, a runnable offline example, and a corrected
+  Status/Sources section (was stale at v0.0.0.9000). `collect_point()`,
+  `verify_geo_series()` and `register_source()` gained `@examples`.
+
 # terroir 0.2.0
 
 * **New source: nert / TERN (`source = "nert"`).** Point-extracts TERN's
