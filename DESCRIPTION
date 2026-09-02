@@ -23,6 +23,7 @@ Imports:
 Suggests:
     chirps,
     geodata,
+    ggplot2,
     GSODR,
     httr2,
     jsonlite,

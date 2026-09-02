@@ -1,3 +1,7 @@
+# terroir (development version)
+
+* Vignettes brought to the orchestra's vignette quality bar v1.
+
 # terroir 0.3.0
 
 * **New source: ocular / Microsoft Planetary Computer (`source = "ocular"`).**
