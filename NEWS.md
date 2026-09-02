@@ -37,6 +37,10 @@
   are read verbatim out of the returned asset URLs -- ocular's scene records do
   not retain the STAC item id -- and are `NA` when no identifier is present; the
   signed URLs themselves are never recorded.
+* **Unmaskable scene refuses.** A scene whose STAC item carries no SCL /
+  `QA_PIXEL` asset cannot be cloud-masked; the adapter refuses (naming the scene
+  date and the missing asset) rather than returning it unmasked inside a series
+  advertised as cloud-masked.
 * **Two external-fact families grounded.** `ocular.stac_collection_id`
   (`sentinel-2-l2a`, `landsat-c2-l2`) and `ocular.stac_endpoint` were resolved
   against the Planetary Computer STAC catalogue on 2026-09-02 -- each collection
