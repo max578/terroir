@@ -200,3 +200,22 @@ test_that("an ocular series carries the retrieval provenance", {
   expect_identical(length(got$scene_ids), length(got$scene_dates))
   expect_false(any(grepl("sig=", got$scene_ids, fixed = TRUE), na.rm = TRUE))
 })
+
+test_that("a scene with no pixel-quality asset aborts rather than passing", {
+  # An unmaskable scene must not be returned inside a series advertised as
+  # cloud-masked; the abort is caught by the adapter's condition boundary and
+  # surfaces as a typed refusal.
+  scene <- list(date = as.Date("2019-06-01"), item_assets = list(B08 = "x"))
+  expect_error(
+    terroir:::.ocular_scene_cloud_mask(scene, "SCL", "scl",
+                                       terroir:::.OCULAR_SCL_DEFAULT),
+    "carries no 'SCL' asset"
+  )
+  wrapped <- terroir:::.ocular_guard(
+    terroir:::.ocular_scene_cloud_mask(scene, "SCL", "scl",
+                                       terroir:::.OCULAR_SCL_DEFAULT),
+    "cloud masking"
+  )
+  expect_true(is_refusal(wrapped))
+  expect_match(wrapped$reason, "cannot be cloud-masked")
+})

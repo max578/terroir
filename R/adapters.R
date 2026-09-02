@@ -514,10 +514,16 @@
 #
 # A pixel with no mask coverage is left in place: masking on absent evidence
 # would silently discard real observations. A date whose window is fully masked
-# aggregates to NA upstream and is dropped from the series by the adapter.
+# aggregates to NA upstream and is dropped from the series by the adapter. A
+# whole scene with no pixel-quality asset is a different thing and aborts: it
+# cannot be masked, and returning it inside a series advertised as cloud-masked
+# would be the silent degradation this adapter exists to prevent.
 .ocular_scene_cloud_mask <- function(scene, mask_asset, mask_kind, classes) {
   href <- scene$item_assets[[mask_asset]]
-  if (is.null(href) || !length(href)) return(NULL)
+  if (is.null(href) || !length(href)) {
+    stop("scene of ", as.character(scene$date), " carries no '", mask_asset,
+         "' asset, so it cannot be cloud-masked", call. = FALSE)
+  }
   tiles <- lapply(as.character(unlist(href, use.names = FALSE)), function(h) {
     r <- terra::rast(paste0("/vsicurl/", h))
     terra::scoff(r) <- NULL
@@ -631,9 +637,7 @@
     lapply(rs$scenes, function(sc) {
       cloud <- .ocular_scene_cloud_mask(sc, cfg$mask_asset, cfg$mask_kind,
                                         mask_classes)
-      if (!is.null(cloud)) {
-        sc$index <- terra::mask(sc$index, cloud, maskvalue = TRUE)
-      }
+      sc$index <- terra::mask(sc$index, cloud, maskvalue = TRUE)
       sc
     }),
     "cloud masking"
