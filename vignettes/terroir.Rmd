@@ -146,7 +146,8 @@ geo_point_schema()
 -- plus a mandatory provenance attribute (source, version, retrieval time,
 licence, the exact upstream call). The `unit` column is part of the contract
 but is not yet populated by every adapter: `nasapower`, `silo` and `abares`
-currently emit `NA_character_` there, while `modis` and `stac` set `"index"`.
+currently emit `NA_character_` there, while `modis`, `stac` and `ocular` set
+`"index"`.
 `verify_geo_series()` checks the schema and the provenance fields and fails
 loudly if either is missing, so a malformed series never flows downstream
 silently -- but it does not yet warn on an all-`NA` `unit` column.
@@ -172,6 +173,13 @@ out
 | `modis` | MODISTools | MODIS NDVI/EVI |
 | `stac` | rsi | Sentinel-2 NDVI via Planetary Computer |
 | `nert` | nert (AAGI-AUS) | TERN soil, soil-moisture, AET, canopy height, phenology (Australia; free key) |
+| `ocular` | ocular (AAGI-AUS) | Sentinel-2 / Landsat spectral-index series over a 500 m window (Planetary Computer; cloud-masked, no key) |
+
+The `ocular` source takes its index name from `variables[1]` (default
+`"NDVI"`) and its sensor from `variables[2]` (`"auto"`, `"sentinel-2"`,
+`"landsat-8"` or `"landsat-5"`; `"auto"` by default). Pixel cloud masking is on
+and cannot be switched off: a date whose window is entirely cloud is dropped
+from the series rather than returned as a spurious near-zero index.
 
 GSODR, geodata (WorldClim + SoilGrids + elevation) and chirps are enrolled in
 the ORCHESTRA and land as adapters in a future release.
