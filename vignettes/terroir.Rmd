@@ -7,35 +7,118 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+<!-- Render time: ~1 s under rmarkdown::render(); macOS arm64, R 4.5.2, one
+     core. No network call is made anywhere in this vignette: every result
+     comes from the shipped offline fixtures or from deterministic code. -->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  dpi = 150
+)
+```
+
+```{r library}
 library(terroir)
 ```
 
-## What terroir does
+## Why
+
+A grower or agronomist assembling covariates for a trial site asks a plain
+question: for one exact paddock, can I pull daily temperature and rainfall,
+a vegetation index, and district farm economics from several public
+archives, through one interface, and get back a tidy table that carries its
+own source, licence and retrieval time, without leaking the paddock's exact
+coordinates and without a live network connection standing between me and
+reproducing the analysis next season? This vignette answers with terroir's
+own shipped fixtures, offline throughout, and closes on what happens when a
+source cannot answer at all.
+
+## What
 
 `terroir` pulls climate, weather, vegetation-index, soil, elevation and
-agricultural-economics data **for a single geographic point** from many free
-sources, behind one uniform contract. You build a request, choose a source, and
-get back a tidy, provenance-stamped series.
+agricultural-economics data for a single geographic point from many free
+sources, behind one uniform request-and-response contract. It is the
+data-collector member of the ORCHESTRA: a producer that feeds covariates and
+forcings to downstream modelling. Every source is an optional adapter, so
+terroir installs and works with none of the source packages present.
 
-It is the data-collector member of the ORCHESTRA: a *producer* that feeds
-covariates and forcings to downstream modelling. Every source is an
-optional adapter, so terroir installs and works with none of the source packages
-present (a missing source yields a structured refusal, not an error).
+`geo_point_request()` builds a request: a point, an optional date range, the
+variables wanted, and the id of one registered source. `list_sources()`
+lists every registered adapter, and `register_source()` adds one, enforcing
+the data-collector role's free-only rule -- an adapter that does not reach a
+free source is refused at registration time, not discovered later as a
+billing surprise. `collect_point()` dispatches one request to its adapter
+and returns a verified `geo_point_series`, or a structured refusal when the
+source is unknown, its package is missing, the point falls outside the
+source's declared coverage, or a returned value fails a plausibility check.
+`collect_points()` runs a whole batch of requests at once and keeps every
+refusal as an accounted row rather than dropping it from the stack.
+`is_refusal()` and `is_replayed()` tell the two special outcomes apart from
+an ordinary series; `verify_geo_series()` and `geo_point_schema()` are the
+contract itself, exported so a downstream package can check or type against
+them directly rather than reaching into terroir's internals.
 
-## The registered sources
+## Do
 
-```{r}
-list_sources()
+### The registered sources
+
+```{r sources}
+src <- list_sources()
+nrow(src)
 ```
 
-Every adapter is **free** -- the data-collector role forbids a paid source
-(`register_source()` refuses `free = FALSE`).
+```{r sources-kable, echo = FALSE}
+knitr::kable(
+  src[, .(id, package, free)],
+  caption = "Every source adapter terroir currently registers."
+)
+```
 
-## A request
+Every adapter is free -- the data-collector role forbids a paid source,
+enforced by `register_source()` itself rather than merely documented.
 
-```{r}
+### Registering a new source
+
+The toy adapter below returns a constant value for illustration; a real
+adapter would call an upstream package instead, the way the seven built-in
+sources do.
+
+```{r register-toy}
+toy_adapter <- function(request, retrieved_at) {
+  dt <- data.table::data.table(
+    date = request$start, variable = "toy_index", value = 1
+  )
+  new_geo_point_series(
+    dt, lon = request$lon, lat = request$lat, source = "toy_local",
+    source_version = "1.0", license = "CC0", retrieved_at = retrieved_at,
+    call = "toy_adapter()"
+  )
+}
+register_source(
+  "toy_local", toy_adapter, package = "base", free = TRUE,
+  description = "Illustrative in-memory adapter used only in this vignette"
+)
+"toy_local" %in% list_sources()$id
+```
+
+The free-only rule is enforced, not merely stated: registering the same
+adapter under `free = FALSE` is refused outright, and the refusal names the
+rule it enforces.
+
+```{r register-paid}
+free_only_refusal <- tryCatch(
+  register_source("toy_paid", toy_adapter, package = "base", free = FALSE),
+  error = function(e) conditionMessage(e)
+)
+cat(free_only_refusal)
+```
+
+### A request
+
+```{r request}
 req <- geo_point_request(
   lon = 138.6, lat = -34.92,       # Adelaide
   start = "2020-01-01", end = "2020-01-31",
@@ -45,28 +128,29 @@ req <- geo_point_request(
 req
 ```
 
-## Collecting (live)
+### Collecting (live)
 
-`collect_point()` performs the download. It is not run here (vignettes build
-offline), but the call is simply:
+`collect_point()` performs the download. It is not run here (this vignette
+builds offline), but the call is simply:
 
-```{r, eval = FALSE}
+```{r live-not-run, eval = FALSE}
 series <- collect_point(req)
 series                 # a geo_point_series: tidy data.table + provenance
 attr(series, "provenance")
 ```
 
-## Offline replay (zero network)
+### Offline replay (zero network)
 
-`terroir` ships a small set of recorded fixtures, one per CORE source. Passing
-`offline = TRUE` answers a request from the matching fixture with no network
-egress at all -- useful for a reproducible pipeline, for a continuous-integration
-run, and (with coarsening, below) for a sovereign coordinate that must never
-reach an upstream service. A replayed series carries `replayed = TRUE` in its
-provenance and keeps the recording's `retrieved_at`, so a consumer can always
-tell a cached series from a live one.
+`terroir` ships a small set of recorded fixtures, one per CORE source.
+Passing `offline = TRUE` answers a request from the matching fixture with no
+network egress at all -- useful for a reproducible pipeline, for a
+continuous-integration run, and (with coarsening, below) for a sovereign
+coordinate that must never reach an upstream service. A replayed series
+carries `replayed = TRUE` in its provenance and keeps the recording's
+`retrieved_at`, so a consumer can always tell a cached series from a live
+one.
 
-```{r}
+```{r offline-collect}
 offline_req <- geo_point_request(
   lon = 138.6, lat = -34.92,
   start = "2020-01-01", end = "2020-01-10",
@@ -81,44 +165,50 @@ head(series, 3)
 
 Offline mode needs none of the source packages installed: it reads `.rds`
 fixtures and never touches an adapter. When no recorded fixture answers a
-request, offline mode returns a structured refusal rather than silently falling
-back to the network -- the zero-egress guarantee is absolute. You can point
-`terroir` at your own directory of recorded fixtures with
+request, offline mode returns a structured refusal rather than silently
+falling back to the network -- the zero-egress guarantee is absolute. A
+caller can point terroir at their own directory of recorded fixtures with
 `options(terroir.fixture_dir = "/path/to/fixtures")`, or switch the whole
 session offline with `options(terroir.offline = TRUE)`.
 
-A `geo_point_series` is long (one row per date x variable), so plotting it as
-small multiples -- one panel per variable, sharing the date axis -- is the
-natural way to look at what a collector call actually returned.
+### A figure: what the replayed series looked like
 
-```{r, fig.cap = "Adelaide, 1-10 January 2020, replayed from the shipped NASA POWER fixture: daily mean air temperature at 2 m (top) and daily precipitation (bottom). No network call was made to produce this figure."}
-vars <- unique(series$variable)
-op <- par(mfrow = c(length(vars), 1), mar = c(3, 4, 2, 1))
-for (v in vars) {
-  sub <- series[series$variable == v, ]
-  plot(as.Date(sub$date), sub$value, type = "b", pch = 16,
-       xlab = "", ylab = paste0(v, " (", sub$unit[1], ")"), main = v)
-}
-par(op)
+A `geo_point_series` is long (one row per date x variable), so plotting it
+as small multiples -- one panel per variable, sharing the date axis -- is
+the natural way to look at what a collector call actually returned.
+
+```{r fig-offline-series, eval = requireNamespace("ggplot2", quietly = TRUE), echo = requireNamespace("ggplot2", quietly = TRUE), fig.cap = "Adelaide, 1-10 January 2020, replayed from the shipped NASA POWER fixture: daily mean air temperature at 2 m and daily total precipitation. No network call was made to produce this figure."}
+panel_lab <- c(
+  T2M = "air temperature at 2 m (degC)",
+  PRECTOTCORR = "total precipitation (mm)"
+)
+plot_dt <- data.table::copy(series)
+plot_dt[, panel := panel_lab[variable]]
+ggplot2::ggplot(
+  plot_dt, ggplot2::aes(x = date, y = value, colour = variable)
+) +
+  ggplot2::geom_line() +
+  ggplot2::geom_point(size = 2) +
+  ggplot2::facet_wrap(~panel, ncol = 1L, scales = "free_y") +
+  ggplot2::scale_colour_viridis_d(guide = "none") +
+  ggplot2::labs(x = "date", y = "daily value") +
+  ggplot2::theme_minimal()
 ```
 
-Temperature swings from 15.5 to 31.06 degC across the ten days -- a
-day-to-day range typical of Adelaide midsummer once a front moves through --
-while precipitation is essentially dry (two days record a trace, 0.03 and
-0.06 mm; the rest are zero). A collector that returned a flat temperature
-line or a wet run of days here would be the signal to distrust the fixture
-before trusting anything built on top of it.
+```{r fig-offline-series-skip, echo = FALSE, eval = !requireNamespace("ggplot2", quietly = TRUE), results = "asis"}
+cat("ggplot2 is not installed; the replayed-series figure is skipped.\n")
+```
 
-## Sovereign coordinates (coarsening)
+### Sovereign coordinates (coarsening)
 
 A grower's exact paddock GPS is sensitive. When a point is flagged
-`sovereign = TRUE`, `terroir` coarsens the coordinate to roughly a one-kilometre
-cell **before** any upstream call, so the exact location never leaves the host.
-Both the raw-requested and the coarsened-sent coordinate are recorded in
-provenance -- the host keeps the full record, the upstream service sees only the
-coarsened point.
+`sovereign = TRUE`, `terroir` coarsens the coordinate to roughly a
+one-kilometre cell before any upstream call, so the exact location never
+leaves the host. Both the raw-requested and the coarsened-sent coordinate
+are recorded in provenance -- the host keeps the full record, the upstream
+service sees only the coarsened point.
 
-```{r}
+```{r sovereign}
 sovereign_req <- geo_point_request(
   lon = 138.63124, lat = -34.92871,   # an exact paddock GPS
   start = "2020-01-01", end = "2020-01-31",
@@ -129,57 +219,200 @@ sovereign_req       # prints both the raw and the coarsened (sent) point
 ```
 
 Coarsening is also available for a non-sovereign point via the `coarsen`
-argument: a single number rounds to that many degrees of precision (for example
-`coarsen = 0.01` for a ~1 km cell), and `coarsen = list(grid = 0.25)` snaps each
-coordinate to the nearest quarter-degree grid node. The returned series'
-provenance gains `sovereign`, `coarsen_policy`, and the raw-vs-sent coordinates;
-the fixed ten-column series schema is unchanged, so a consumer reading those
-columns is unaffected.
+argument: a single number rounds to that many degrees of precision (for
+example `coarsen = 0.01` for a roughly 1 km cell), and
+`coarsen = list(grid = 0.25)` snaps each coordinate to the nearest
+quarter-degree grid node. The returned series' provenance gains
+`sovereign`, `coarsen_policy`, and the raw-vs-sent coordinates; the fixed
+ten-column series schema is unchanged, so a consumer reading those columns
+is unaffected.
 
-The returned `geo_point_series` always has the same fixed columns, readable
-from the exported schema accessor --
+### The response contract
 
-```{r}
+```{r schema}
 geo_point_schema()
 ```
 
--- plus a mandatory provenance attribute (source, version, retrieval time,
-licence, the exact upstream call). The `unit` column is part of the contract
-but is not yet populated by every adapter: `nasapower`, `silo` and `abares`
-currently emit `NA_character_` there, while `modis`, `stac` and `ocular` set
-`"index"`.
-`verify_geo_series()` checks the schema and the provenance fields and fails
-loudly if either is missing, so a malformed series never flows downstream
-silently -- but it does not yet warn on an all-`NA` `unit` column.
+Every series carries these ten columns plus a mandatory provenance
+attribute (source, version, retrieval time, licence, the exact upstream
+call); `verify_geo_series()` checks both and fails loudly if either is
+missing, so a malformed series never flows downstream silently.
 
-## Graceful refusal
-
-If a source's package is not installed, or its free key is unset, you get a
-first-class refusal rather than an error:
-
-```{r}
-out <- collect_point(geo_point_request(0, 0, source = "not_a_source"))
-is_refusal(out)
-out
+```{r verify}
+verify_geo_series(series)
 ```
 
-## Sources at a glance
+The `unit` column is part of the contract but is not yet populated by every
+adapter: `nasapower`, `silo`, `abares` and `nert` currently emit
+`NA_character_` there, while `modis`, `stac` and `ocular` set `"index"`.
+`verify_geo_series()` does not yet warn on an all-`NA` `unit` column.
 
-| source id | upstream | domain |
-|---|---|---|
-| `nasapower` | nasapower | global climate + solar (no key) |
-| `silo` | weatherOz | SILO 5 km grid, Australia (free email key) |
-| `abares` | read.abares | Australian gridded farm economics |
-| `modis` | MODISTools | MODIS NDVI/EVI |
-| `stac` | rsi | Sentinel-2 NDVI via Planetary Computer |
-| `nert` | nert (AAGI-AUS) | TERN soil, soil-moisture, AET, canopy height, phenology (Australia; free key) |
-| `ocular` | ocular (AAGI-AUS) | Sentinel-2 / Landsat spectral-index series over a 500 m window (Planetary Computer; cloud-masked, no key) |
+### Graceful refusal
+
+If a source's package is not installed, or its free key is unset, a caller
+gets a first-class refusal rather than an error.
+
+```{r refusal}
+refused <- suppressWarnings(
+  collect_point(geo_point_request(0, 0, source = "not_a_source"))
+)
+is_refusal(refused)
+refused
+```
+
+### Batch collection
+
+`collect_points()` runs several requests at once and stacks the outcomes
+into one table, tagged with a `request_index` and a `status` column. A
+refusal contributes exactly one accounted row rather than disappearing from
+the stack, so a multi-site collection with a dead source still reports
+every request it was given.
+
+```{r batch}
+batch_reqs <- list(
+  geo_point_request(
+    138.6, -34.92, "2020-01-01", "2020-01-10",
+    variables = c("T2M", "PRECTOTCORR"), source = "nasapower"
+  ),
+  geo_point_request(140.7, -35.30, source = "abares"),
+  geo_point_request(0, 0, source = "not_a_source")
+)
+batch_out <- collect_points(batch_reqs, offline = TRUE)
+batch_summary <- batch_out[, .(
+  source = source[1L], status = status[1L], n_rows = .N,
+  reason = reason[1L]
+), by = request_index]
+```
+
+```{r batch-kable, echo = FALSE}
+knitr::kable(
+  batch_summary,
+  caption = paste0(
+    "One row per request in a three-request batch (n = ", nrow(batch_out),
+    " stacked rows in total)."
+  )
+)
+```
+
+### Sources at a glance
+
+```{r sources-table, echo = FALSE}
+sources_table <- data.table::data.table(
+  id = c("nasapower", "silo", "abares", "modis", "stac", "nert", "ocular"),
+  upstream = c(
+    "nasapower", "weatherOz", "read.abares", "MODISTools", "rsi",
+    "nert (AAGI-AUS)", "ocular (AAGI-AUS)"
+  ),
+  domain = c(
+    "global climate + solar (no key)",
+    "SILO 5 km grid, Australia (free email key)",
+    "Australian gridded farm economics",
+    "MODIS NDVI/EVI",
+    "Sentinel-2 NDVI via Planetary Computer",
+    paste0(
+      "TERN soil, soil-moisture, AET, canopy height, phenology ",
+      "(Australia; free key)"
+    ),
+    paste0(
+      "Sentinel-2 / Landsat spectral-index series over a 500 m window ",
+      "(Planetary Computer; cloud-masked, no key)"
+    )
+  )
+)
+knitr::kable(
+  sources_table,
+  caption = "The seven registered sources and what each covers."
+)
+```
 
 The `ocular` source takes its index name from `variables[1]` (default
 `"NDVI"`) and its sensor from `variables[2]` (`"auto"`, `"sentinel-2"`,
-`"landsat-8"` or `"landsat-5"`; `"auto"` by default). Pixel cloud masking is on
-and cannot be switched off: a date whose window is entirely cloud is dropped
-from the series rather than returned as a spurious near-zero index.
+`"landsat-8"` or `"landsat-5"`; `"auto"` by default). Pixel cloud masking is
+on and cannot be switched off: a date whose window is entirely cloud is
+dropped from the series rather than returned as a spurious near-zero index.
 
-GSODR, geodata (WorldClim + SoilGrids + elevation) and chirps are enrolled in
-the ORCHESTRA and land as adapters in a future release.
+GSODR, geodata (WorldClim + SoilGrids + elevation) and chirps are enrolled
+in the ORCHESTRA and land as adapters in a future release.
+
+## Read
+
+```{r read-prep, echo = FALSE}
+temp_dt <- series[series$variable == "T2M", ]
+precip_dt <- series[series$variable == "PRECTOTCORR", ]
+temp_min <- min(temp_dt$value)
+temp_max <- max(temp_dt$value)
+precip_wet <- precip_dt[precip_dt$value > 0, ]
+```
+
+`r nrow(src)` sources are currently registered, all free by construction:
+the free-only rule tested above refuses a paid adapter with an explicit
+error rather than letting one slip into the registry silently.
+
+Air temperature at Adelaide across the replayed ten days ranges from
+`r sprintf("%.2f", temp_min)` to `r sprintf("%.2f", temp_max)` degC -- a
+day-to-day swing typical of Adelaide midsummer once a front moves through --
+while precipitation is essentially dry:
+`r nrow(precip_wet)` of the ten days record a trace
+(`r paste(sprintf("%.2f", precip_wet$value), collapse = " and ")` mm), and
+the rest are zero. A collector that returned a flat temperature line or a
+wet run of days here would be the signal to distrust the fixture before
+trusting anything built on top of it.
+
+Coarsening moves the sovereign point from its exact
+(`r sovereign_req$lon_raw`, `r sovereign_req$lat_raw`) to the sent
+(`r sovereign_req$lon`, `r sovereign_req$lat`) under the
+`r sovereign_req$coarsen_policy` policy -- roughly a one-kilometre cell at
+this latitude -- so only the coarsened point, never the exact paddock GPS,
+reaches the upstream service.
+
+The three-request batch stacks `r nrow(batch_out)` rows: the two answerable
+requests (`nasapower`, `abares`) each contribute one row per collected
+value, and the one unregistered source contributes exactly one refused row
+rather than being dropped, carrying its own reason in the `reason` column
+rather than a bare `NA`.
+
+## Limits
+
+The five CORE-source fixtures shipped with this vignette (`nasapower`,
+`silo`, `modis`, `abares`, `stac`) were recorded once, on 2 June 2026: they
+answer exactly the point, date range and variables recorded in the fixture
+manifest, and read nothing live, so the temperature and precipitation
+figures above describe that one recorded January rather than current
+conditions. `nert` and `ocular` ship no offline fixture in this package, so
+neither their live retrieval nor `ocular`'s cloud masking is exercised
+here; `NEWS.md` documents both in full. `silo`, `abares` and `nert` refuse a
+point outside Australia's bounding box, and `ocular` refuses outside its
+UTM-defined latitude band, because its window is built in UTM and is
+undefined further poleward -- neither restriction is exercised in this
+vignette, whose one worked point sits well inside every source's coverage.
+Coordinate coarsening rounds to a fixed number of decimal degrees or snaps
+to a grid; it is not a true geodesic buffer, so the ground distance a
+coarsened point actually moves varies with latitude rather than being a
+constant one kilometre everywhere. Several of the external facts this
+package asserts remain unverified against their own authority -- among them
+the SILO variable codes, the ABARES layer-name dictionary and the
+Sentinel-2 band mapping -- and `terroir_external_facts()` and
+`terroir_fact_status()` enumerate exactly which fact families still need
+that check before a caller should treat their column semantics as
+independently confirmed rather than merely upstream-documented.
+
+## What to read next
+
+The function reference (`?collect_point`, `?geo_point_request`,
+`?collect_points`) documents every argument in full, including ones this
+vignette does not exercise, such as passing an explicit `retrieved_at` for
+a reproducible live run. `terroir_external_facts()` and
+`terroir_fact_status()` document exactly which external-authority facts
+this package asserts and which of them have been checked against their own
+catalogue, family by family. `NEWS.md` describes the newest source,
+`ocular`, and the cloud-masking behaviour this vignette's offline fixtures
+do not exercise, in full.
+
+## Reproduce
+
+This vignette draws no random numbers: every value comes from the shipped
+offline fixtures or from the package's own deterministic code.
+
+```{r session-info}
+sessionInfo()
+```
