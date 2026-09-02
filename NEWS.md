@@ -1,4 +1,53 @@
-# terroir (development version)
+# terroir 0.3.0
+
+* **New source: ocular / Microsoft Planetary Computer (`source = "ocular"`).**
+  Sentinel-2 and Landsat spectral-index series (NDVI by default) over a 500 m
+  square window centred on the point, retrieved through the `ocular` package
+  (AAGI-AUS) from the Planetary Computer SpatioTemporal Asset Catalog. No key.
+  `variables[1]` selects the index, `variables[2]` the sensor (`"auto"`,
+  `"sentinel-2"`, `"landsat-8"`, `"landsat-5"`). ocular is an *upstream*, not
+  an ORCHESTRA member: it sits in `Suggests`, is reached only through
+  `requireNamespace()`, is commit-pinned in `Remotes:`, and every error or
+  warning it raises is converted into a `terroir_refusal` -- no upstream
+  condition reaches the caller untyped. The adapter registers a
+  `[-180, -80] x [180, 84]` extent, because ocular builds its window in UTM and
+  is undefined outside that latitude band.
+* **Pixel cloud masking is on by default, and is terroir's own.** The series is
+  masked against the Sentinel-2 Scene Classification Layer (classes 0, 1, 3, 8,
+  9, 10, 11) or the Landsat Collection-2 `QA_PIXEL` bits (0-5); scene-level
+  cloud filtering alone leaves cloudy pixels in the window and collapses the
+  index on overcast dates. The mask is applied to the returned index rasters
+  rather than through the upstream's own `scl_classes` argument, because at the
+  pinned commit that argument silently drops every scene (its band list reaches
+  `do.call()` named, so the mask branch operates on a plain list and errors into
+  the per-scene handler). A date whose window is entirely masked is dropped from
+  the series rather than returned as a spurious near-zero index.
+* **Vendored upstream patch for ocular's tile merge.** `ocular:::.mergeRasterTiles()`
+  splices a *named* raster list into `do.call()`, so every multi-tile date fails
+  with `argument "x" is missing`. terroir installs a behaviourally identical
+  replacement that unnames the list, into ocular's namespace, on first use of
+  the adapter (never at package load) and once per session. It is declared in
+  the returned provenance and is removed when the fix lands upstream.
+* **Retrieval provenance on an ocular series.** Beyond the contract's five
+  provenance fields, an ocular series carries the STAC endpoint and collection
+  id, the resolved sensor, the index name, the window size, the scene-level
+  cloud ceiling, the mask asset / kind / class set, the scene dates, the scene
+  ids and the ocular commit actually installed (read from ocular's own
+  `DESCRIPTION`, so a drifted install is visible rather than assumed). Scene ids
+  are read verbatim out of the returned asset URLs -- ocular's scene records do
+  not retain the STAC item id -- and are `NA` when no identifier is present; the
+  signed URLs themselves are never recorded.
+* **Unmaskable scene refuses.** A scene whose STAC item carries no SCL /
+  `QA_PIXEL` asset cannot be cloud-masked; the adapter refuses (naming the scene
+  date and the missing asset) rather than returning it unmasked inside a series
+  advertised as cloud-masked.
+* **Two external-fact families grounded.** `ocular.stac_collection_id`
+  (`sentinel-2-l2a`, `landsat-c2-l2`) and `ocular.stac_endpoint` were resolved
+  against the Planetary Computer STAC catalogue on 2026-09-02 -- each collection
+  endpoint returned its own `id` -- and carry a real `verified_on`. The adapter
+  additionally re-checks the asserted collection id against the one ocular
+  configures for the resolved sensor at call time, and refuses on a mismatch
+  rather than mislabelling the provenance.
 
 * **`collect_points()`: batch/panel collection over a list of requests.** The
   fleet-audit-named batch verb (T-11): dispatches each request through

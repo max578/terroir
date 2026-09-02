@@ -1,6 +1,6 @@
 # external-fact families: product_id, band_id, scale_factor,
 #   nasapower_variable_code, variable_code, renamed_column, layer_name,
-#   band_mapping
+#   band_mapping, tern_dataset_id, stac_collection_id, stac_endpoint
 # (recipe-52 catalogue/coverage header -- the validator's per-family F14 grep
 #  resolves every registry family to this catalogue-diff oracle file.)
 #
@@ -114,6 +114,37 @@ test_that("ABARES AGFD layer names match the live data dictionary (opt-in)", {
                                 "AGFD grid:", paste(missing, collapse = ", ")))
 })
 
+test_that("ocular's STAC collection ids resolve at the asserted endpoint", {
+  # The independent oracle for the collection ids the ocular adapter retrieves
+  # through is the Planetary Computer catalogue itself -- not ocular's source,
+  # and not a golden terroir wrote. Resolving `/collections/<id>` returns the
+  # collection document, whose own `id` is what grounds the assertion. This is
+  # the diff that carries the 2026-09-02 `verified_on` on both families.
+  testthat::skip_on_cran()
+  testthat::skip_if_offline()
+  skip_if_not_installed("httr2")
+  skip_if_not_installed("jsonlite")
+  facts <- terroir_external_facts()
+  endpoint <- facts[source == "ocular" & fact_family == "stac_endpoint",
+                    asserted_value]
+  ids <- facts[source == "ocular" & fact_family == "stac_collection_id",
+               asserted_value]
+  expect_length(endpoint, 1L)
+
+  for (id in ids) {
+    doc <- tryCatch({
+      resp <- httr2::req_perform(
+        httr2::request(paste0(endpoint, "/collections/", id))
+      )
+      jsonlite::fromJSON(httr2::resp_body_string(resp))
+    }, error = function(e) NULL)
+    skip_if(is.null(doc),
+            paste("Planetary Computer STAC unreachable for collection", id))
+    expect_identical(as.character(doc$id), id)
+    expect_identical(as.character(doc$type), "Collection")
+  }
+})
+
 test_that("the fact registry is well-formed with mixed, honest grounding", {
   facts <- terroir_external_facts()
   expect_true(all(c("source", "fact_family", "asserted_value", "oracle_kind",
@@ -121,14 +152,17 @@ test_that("the fact registry is well-formed with mixed, honest grounding", {
                   names(facts)))
 
   # Grounding is mixed: MODIS (product / band / scale) and NASA POWER variable
-  # codes were diffed against their live authorities on 2026-06-13 and so carry
-  # a real verified_on; SILO, ABARES and STAC stay honestly [unverified] (NA).
+  # codes were diffed against their live authorities on 2026-06-13, and the two
+  # ocular STAC families against the Planetary Computer catalogue on
+  # 2026-09-02, so those carry a real verified_on; SILO, ABARES and the rsi
+  # `stac` band mapping stay honestly [unverified] (NA).
   grounded_src <- facts[grounding == "grounded",
                         sort(unique(paste(source, fact_family)))]
   expect_setequal(
     grounded_src,
     c("modis band_id", "modis product_id", "modis scale_factor",
-      "nasapower nasapower_variable_code")
+      "nasapower nasapower_variable_code",
+      "ocular stac_collection_id", "ocular stac_endpoint")
   )
   # Every grounded fact has a non-NA Date; every [unverified] fact has NA. The
   # registry must never claim a fact is grounded without a recorded date.
@@ -160,8 +194,9 @@ test_that("the canonical recipe-52 registry matches the reader view (no drift)",
 
 test_that("the registry validator reports the mixed grounding state per family", {
   # Grounding is now mixed. The validator must PASS the families a real live
-  # oracle grounded on 2026-06-13 (MODIS product / band / scale, NASA POWER
-  # codes) and FAIL the ones still awaiting their oracle (SILO, ABARES, STAC)
+  # oracle grounded (MODIS product / band / scale and NASA POWER codes on
+  # 2026-06-13; the ocular STAC families on 2026-09-02) and FAIL the ones
+  # still awaiting their oracle (SILO, ABARES, the rsi band mapping)
   # with the honest un-grounded reason. We never fabricate a verified_on to
   # force a green -- that would be the exact hallucination the Independent
   # Oracle Principle forbids; the NA families fail because they are genuinely
@@ -170,7 +205,8 @@ test_that("the registry validator reports the mixed grounding state per family",
                                                testthat::test_path())
 
   grounded_fams <- c("product_id", "band_id", "scale_factor",
-                     "nasapower_variable_code")
+                     "nasapower_variable_code", "stac_collection_id",
+                     "stac_endpoint")
   ungrounded_fams <- c("variable_code", "renamed_column", "layer_name",
                        "band_mapping")
 

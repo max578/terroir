@@ -38,10 +38,14 @@
 # DAAC catalogue (MODISTools::mt_products / mt_bands) and NASA POWER variable
 # codes against the live POWER parameter dictionary on 2026-06-13. SILO, ABARES
 # and Sentinel-2 STAC stay NA: their authoritative oracle has not yet been run
-# in a recorded session, so they remain honestly `[unverified]`.
+# in a recorded session, so they remain honestly `[unverified]`. The ocular
+# STAC families (collection ids and the API root) were resolved against the
+# Planetary Computer STAC catalogue itself on 2026-09-02 -- each collection
+# endpoint returned HTTP 200 and echoed back the asserted `id`.
 .TERROIR_VERIFIED <- list(
   modis_grounded   = as.Date("2026-06-13"),
-  nasapower_codes  = as.Date("2026-06-13")
+  nasapower_codes  = as.Date("2026-06-13"),
+  ocular_stac      = as.Date("2026-09-02")
 )
 
 # The seed table. One row per asserted external-authority fact. `oracle_kind`
@@ -51,6 +55,7 @@
   abares_layers <- .TERROIR_ABARES_LAYERS
   modis_on <- .TERROIR_VERIFIED$modis_grounded
   power_on <- .TERROIR_VERIFIED$nasapower_codes
+  ocular_on <- .TERROIR_VERIFIED$ocular_stac
   rows <- list(
     data.frame(source = "modis", fact_family = "product_id",
                asserted_value = "MOD13Q1", oracle_kind = "live_catalogue",
@@ -88,7 +93,21 @@
     # `[unverified]` (verified_on = NA), never grounded by trusting the source.
     data.frame(source = "nert", fact_family = "tern_dataset_id",
                asserted_value = "SMIPS", oracle_kind = "live_catalogue",
-               verified_on = as.Date(NA), stringsAsFactors = FALSE)
+               verified_on = as.Date(NA), stringsAsFactors = FALSE),
+    # ocular / Microsoft Planetary Computer. The STAC collection ids and the
+    # API root the ocular adapter retrieves through. Their oracle is the
+    # Planetary Computer catalogue itself (the authority that owns them), not
+    # ocular's source: resolving each collection endpoint returns the `id`
+    # back, which is what grounds the assertion.
+    data.frame(source = "ocular", fact_family = "stac_collection_id",
+               asserted_value = c("sentinel-2-l2a", "landsat-c2-l2"),
+               oracle_kind = "live_catalogue", verified_on = ocular_on,
+               stringsAsFactors = FALSE),
+    data.frame(source = "ocular", fact_family = "stac_endpoint",
+               asserted_value =
+                 "https://planetarycomputer.microsoft.com/api/stac/v1",
+               oracle_kind = "live_catalogue", verified_on = ocular_on,
+               stringsAsFactors = FALSE)
   )
   out <- data.table::rbindlist(rows)
   out[, evidence_path := NA_character_]
@@ -157,7 +176,10 @@ terroir_fact_status <- function() {
 # ABARES and Sentinel-2 STAC families stay `verified_on = NA`: their
 # authoritative oracle (a keyed SILO catalogue, the large AGFD download, a
 # Planetary-Computer STAC introspection) has not yet been run in a recorded
-# session, so they remain honestly `[unverified]`. We never fabricate a
+# session, so they remain honestly `[unverified]`. The two ocular STAC families
+# (the collection ids and the API root) carry `verified_on = 2026-09-02`: each
+# was resolved against the Planetary Computer catalogue in a recorded session
+# and echoed its own id back. We never fabricate a
 # `verified_on` for a fact we did not actually diff (the exact hallucination the
 # Independent Oracle Principle forbids); the remaining NA rows are the true,
 # machine-visible un-grounded state, a release-cut gate for a future session.
@@ -165,18 +187,20 @@ terroir_fact_status <- function() {
 .external_facts <- data.frame(
   family = c("product_id", "band_id", "scale_factor", "nasapower_variable_code",
              "variable_code", "renamed_column", "layer_name", "band_mapping",
-             "tern_dataset_id"),
+             "tern_dataset_id", "stac_collection_id", "stac_endpoint"),
   fact_id = c("modis.product_id", "modis.band_id", "modis.scale_factor",
               "nasapower.variable_code", "silo.variable_code",
               "silo.renamed_column", "abares.layer_name", "stac.band_mapping",
-              "nert.tern_dataset_id"),
+              "nert.tern_dataset_id", "ocular.stac_collection_id",
+              "ocular.stac_endpoint"),
   kind = c("locator", "enum", "units", "enum", "enum", "enum", "enum", "enum",
-           "enum"),
+           "enum", "enum", "locator"),
   value = c(
     "MOD13Q1", "250m_16_days_NDVI", "0.0001", "T2M, PRECTOTCORR",
     "max_temp, min_temp, rain", "air_tmax, air_tmin, rainfall",
     paste(.TERROIR_ABARES_LAYERS, collapse = ", "), "N=B08, R=B04",
-    "SMIPS"),
+    "SMIPS", "sentinel-2-l2a, landsat-c2-l2",
+    "https://planetarycomputer.microsoft.com/api/stac/v1"),
   source = c(
     "NASA LP DAAC MODIS MOD13Q1 product (ORNL DAAC MODISTools::mt_products)",
     "NASA LP DAAC MOD13Q1 band list (ORNL DAAC MODISTools::mt_bands)",
@@ -186,15 +210,20 @@ terroir_fact_status <- function() {
     "SILO -> terroir column rename map (SILO variable documentation)",
     "ABARES AAGIS farm-data layer dictionary",
     "Sentinel-2 band designations (ESA/Copernicus; STAC asset keys)",
-    "TERN data catalogue / STAC (the authority; via nert, AAGI-AUS) -- not yet diffed in a recorded session"),
+    "TERN data catalogue / STAC (the authority; via nert, AAGI-AUS) -- not yet diffed in a recorded session",
+    paste("Microsoft Planetary Computer STAC collection catalogue",
+          "(each id resolved at /collections/<id>)"),
+    paste("Microsoft Planetary Computer STAC API root (the landing page",
+          "identifies itself as microsoft-pc)")),
   verified_on = c(
     "2026-06-13", "2026-06-13", "2026-06-13", "2026-06-13",
     NA_character_, NA_character_, NA_character_, NA_character_,
-    NA_character_),
+    NA_character_, "2026-09-02", "2026-09-02"),
   reverify_by = c("stable", "stable", "literature", "stable", "stable",
-                  "stable", "stable", "literature", "stable"),
+                  "stable", "stable", "literature", "stable", "stable",
+                  "stable"),
   oracle_types = c("A,B", "B,E", "A,D", "B,E", "B,E", "B,E", "B,E", "B,E",
-                   "B,E"),
+                   "B,E", "B,E", "A,B"),
   signoff = NA_character_,
   stringsAsFactors = FALSE)
 

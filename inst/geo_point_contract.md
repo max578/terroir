@@ -99,6 +99,7 @@ source yields a structured refusal, never a break). Registered sources:
 | `worldclim` / `soilgrids` / `elevation` | geodata | WorldClim normals + SoilGrids + elevation, global | extract at point | yes |
 | `chirps` | chirps (ropensci) | CHIRPS rainfall, global | point | yes |
 | `tern` | nert (**AAGI-AUS**) | TERN ecosystem (flux/soil/ecology), Australia | point | yes |
+| `ocular` | ocular (**AAGI-AUS**) | Sentinel-2 / Landsat spectral-index series via Planetary Computer | 500 m window at the point | yes |
 
 **Derived index (transform, not a source):** `spi` via SPIChanges --- computes the
 Standardized Precipitation Index + trend changes from a precipitation series the

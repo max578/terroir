@@ -19,5 +19,13 @@
                         "phenology (Australia) point extract via nert (AAGI-AUS);",
                         "free TERN API key"),
                   extent = au_bbox)
+  # ocular retrieves global Sentinel-2 / Landsat imagery, but its bounding box
+  # is built in UTM, so it is defined only on the UTM latitude band -- refuse a
+  # polar point here rather than let the upstream abort (IOP / FX-6).
+  register_source("ocular", .adapter_ocular, "ocular", TRUE,
+                  paste("Sentinel-2 / Landsat spectral-index series over a",
+                        "500 m window (Microsoft Planetary Computer STAC) via",
+                        "ocular (AAGI-AUS); cloud-masked, no key"),
+                  extent = c(-180, -80, 180, 84))
   invisible()
 }
