@@ -12,6 +12,7 @@ reference:
     contents:
       - geo_point_request
       - collect_point
+      - collect_points
       - is_replayed
   - title: The series contract
     desc: >
@@ -20,6 +21,7 @@ reference:
     contents:
       - new_geo_point_series
       - verify_geo_series
+      - geo_point_schema
   - title: Source registry
     desc: >
       The free-only source registry and its structured refusals.
