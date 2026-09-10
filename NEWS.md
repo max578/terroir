@@ -1,5 +1,39 @@
 # terroir (development version)
 
+## A global soil source
+
+* **New source `isric`: ISRIC SoilGrids point profiles, global and keyless.**
+  Texture, organic carbon, pH, bulk density, CEC, nitrogen and the water limits
+  LL15/DUL/SAT, one value per property per depth layer, retrieved through
+  `apsimx`. This closes the gap a running study had already routed around:
+  `studies/A0/01_generate_belt.R` reached past terroir into `apsimx` for soil
+  and left the uplift note behind, because a grain decision needs soil as much
+  as it needs weather.
+
+* **It does not intersect `nert`.** nert serves TERN soil, but over Australia
+  only and only with a key. `isric` is global and keyless, so inside Australia a
+  caller may prefer TERN's measured products and everywhere else this is the
+  only soil terroir has.
+
+* **Soil is dateless by design.** The `date` column is `NA` for a soil series
+  rather than stamped with the retrieval time: a time-invariant property carrying
+  a date invites a consumer to difference two retrievals as though something had
+  changed.
+
+* **Soil plausibility bounds join the value conformer.** Texture, pH, bulk
+  density, carbon, CEC, nitrogen and the water limits are range-checked at the
+  contract. SoilGrids' own service returns integers scaled by ten and `apsimx`
+  unscales them, so the scale error is one upstream change away rather than
+  impossible, and it is the same class the NDVI bound already guards.
+
+* **The statistic is selectable, within an honest limit.** `mean` or `Q0.5`.
+  ISRIC publishes Q0.05 and Q0.95 as well, which is what would let soil enter an
+  analysis as a prior rather than a point value, but the upstream wrapper does
+  not expose them; asking for one refuses typed rather than quietly returning the
+  mean under a quantile's name.
+
+# terroir (development version)
+
 * Vignettes brought to the orchestra's vignette quality bar v1.
 
 # terroir 0.3.0

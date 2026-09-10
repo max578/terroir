@@ -126,6 +126,29 @@ verify_geo_series <- function(x) {
                    rng[1], rng[2]))
   }
 
+  # Soil properties arrive from SoilGrids as unscaled reals through apsimx, but
+  # the upstream's raw service returns integers scaled by ten, so the scale
+  # error is one upstream change away. These bounds catch it at the contract.
+  soil_bounds <- list(
+    c("^(clay|silt|sand)_",  0,   100),
+    c("^carbon_",            0,    60),
+    c("^ph_",                0,    14),
+    c("^bd_",                0.1,   2.65),
+    c("^cec_",               0,   500),
+    c("^nitrogen_",          0,    30),
+    c("^(ll15|dul|sat)_",    0,     1)
+  )
+  for (b in soil_bounds) {
+    hit <- grepl(b[[1]], v) & fin & (val < as.numeric(b[[2]]) | val > as.numeric(b[[3]]))
+    if (any(hit)) {
+      rng <- range(val[hit])
+      return(sprintf(paste0("Implausible soil value(s) for %s outside [%s, %s] ",
+                            "(observed %.4g .. %.4g) -- a likely scale/unit ",
+                            "error. Refusing the series."),
+                     b[[1]], b[[2]], b[[3]], rng[1], rng[2]))
+    }
+  } # ends b, over the soil plausibility bounds
+
   is_temp <- grepl("tmax|tmin|temp|^T2M$|air_tmax|air_tmin|max_temp|min_temp",
                    v, ignore.case = TRUE)
   off_temp <- is_temp & fin & (val < -90 | val > 60)

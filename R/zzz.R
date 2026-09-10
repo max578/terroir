@@ -19,6 +19,12 @@
                         "phenology (Australia) point extract via nert (AAGI-AUS);",
                         "free TERN API key"),
                   extent = au_bbox)
+  # Global and keyless, so it complements nert's Australia-only keyed TERN soil
+  # rather than duplicating it. No extent: SoilGrids is defined worldwide.
+  register_source("isric", .adapter_isric, "apsimx", TRUE,
+                  paste("ISRIC SoilGrids point profile (global, no key):",
+                        "texture, carbon, pH, bulk density, CEC, nitrogen and",
+                        "the water limits LL15/DUL/SAT, by depth layer"))
   # ocular retrieves global Sentinel-2 / Landsat imagery, but its bounding box
   # is built in UTM, so it is defined only on the UTM latitude band -- refuse a
   # polar point here rather than let the upstream abort (IOP / FX-6).

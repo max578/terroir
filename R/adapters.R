@@ -701,3 +701,113 @@
   data.table::setattr(series, "provenance", prov)
   series
 }
+
+# ---- ISRIC SoilGrids: the global soil profile -------------------------------
+#
+# The gap a running study had to route around. A grain decision needs soil --
+# texture, pH, plant-available water, starting nitrogen -- as much as it needs
+# weather, and terroir served none; `studies/A0/01_generate_belt.R` reached past
+# terroir into apsimx for exactly this and left the uplift note behind.
+#
+# Non-intersecting by design. `nert` already serves TERN soil, but only over
+# Australia and only with a key. This source is global and keyless, so the two
+# complement rather than duplicate: inside Australia a caller may prefer TERN's
+# measured products, everywhere else this is the only soil terroir has.
+#
+# Soil is time-invariant at the scale terroir serves, so `date` is NA. That is
+# deliberate rather than missing: stamping the retrieval date onto a property
+# that does not vary would invite a consumer to read it as a series and to
+# difference two retrievals as though something had changed.
+
+#: The soil properties this adapter serves, mapped to the upstream's columns.
+.SOIL_VARS <- c(
+  clay = "ParticleSizeClay", silt = "ParticleSizeSilt", sand = "ParticleSizeSand",
+  carbon = "Carbon", ph = "PH", bd = "BD", cec = "CEC", nitrogen = "Nitrogen",
+  ll15 = "LL15", dul = "DUL", sat = "SAT"
+)
+
+#: Units, carried into the contract's `unit` column so a consumer never guesses.
+.SOIL_UNITS <- c(
+  clay = "%", silt = "%", sand = "%", carbon = "%", ph = "pH",
+  bd = "g/cm3", cec = "cmol/kg", nitrogen = "%",
+  ll15 = "mm/mm", dul = "mm/mm", sat = "mm/mm"
+)
+
+.adapter_isric <- function(request, retrieved_at) {
+  want <- request$variables %||% names(.SOIL_VARS)
+  unknown <- setdiff(want, names(.SOIL_VARS))
+  if (length(unknown) > 0L) {
+    return(.refuse(
+      sprintf("isric serves no variable(s) %s; it serves %s",
+              paste(unknown, collapse = ", "),
+              paste(names(.SOIL_VARS), collapse = ", ")),
+      "isric", warn = FALSE
+    ))
+  }
+  # The distributional handle, and its limit. ISRIC publishes Q0.05 / Q0.5 /
+  # Q0.95 per property, which is what would let soil enter an analysis as a
+  # prior rather than a point. The upstream wrapper exposes only the mean and
+  # the median, so that is all this adapter can offer honestly; the quantile
+  # layers are the concrete blocker to a Bayesian use and are recorded as such
+  # rather than approximated from the mean-median gap.
+  stat_local <- request$statistic %||% "mean"
+  if (!stat_local %in% c("mean", "Q0.5")) {
+    return(.refuse(
+      sprintf(paste("isric serves statistic 'mean' or 'Q0.5', not '%s';",
+                    "the upstream exposes no other quantile"), stat_local),
+      "isric", warn = FALSE
+    ))
+  }
+  raw <- tryCatch(
+    apsimx::get_isric_soil_profile(lonlat = c(request$lon, request$lat),
+                                   statistic = stat_local,
+                                   fix = TRUE, verbose = FALSE),
+    error = function(e) e
+  )
+  if (inherits(raw, "error")) {
+    return(.refuse(paste("isric call failed:", conditionMessage(raw)),
+                   "isric", warn = FALSE))
+  }
+  sp <- raw$soil
+  if (is.null(sp) || !is.data.frame(sp) || nrow(sp) == 0L) {
+    return(.refuse("isric returned no soil layers for this point",
+                   "isric", warn = FALSE))
+  }
+  if (!"Depth" %in% names(sp)) {
+    return(.refuse("isric profile carries no Depth column", "isric", warn = FALSE))
+  }
+  have <- want[.SOIL_VARS[want] %in% names(sp)]
+  if (length(have) == 0L) {
+    return(.refuse(
+      sprintf("isric profile carries none of the requested columns (%s)",
+              paste(want, collapse = ", ")),
+      "isric", warn = FALSE
+    ))
+  }
+  depth_tag <- paste0(gsub("-", "_", as.character(sp$Depth), fixed = TRUE), "cm")
+  rows_list <- vector("list", length(have))
+  for (i1 in seq_along(have)) {
+    v_local <- have[i1]
+    rows_list[[i1]] <- data.table::data.table(
+      date = as.Date(NA),
+      variable = paste0(v_local, "_", depth_tag),
+      value = suppressWarnings(as.numeric(sp[[.SOIL_VARS[v_local]]])),
+      unit = unname(.SOIL_UNITS[v_local])
+    )
+  } # ends i1, over the requested soil properties
+  long <- data.table::rbindlist(rows_list)
+  long <- long[is.finite(long$value), ]
+  if (nrow(long) == 0L) {
+    return(.refuse("isric returned no finite soil values for this point",
+                   "isric", warn = FALSE))
+  }
+  new_geo_point_series(
+    long, lon = request$lon, lat = request$lat, source = "isric",
+    source_version = utils::packageVersion("apsimx"),
+    license = "ISRIC SoilGrids (CC-BY 4.0), retrieved via apsimx",
+    retrieved_at = retrieved_at,
+    call = sprintf(paste0("apsimx::get_isric_soil_profile(lonlat=c(%g,%g), ",
+                          "statistic='%s', fix=TRUE)"),
+                   request$lon, request$lat, stat_local)
+  )
+}
