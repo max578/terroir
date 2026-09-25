@@ -8,3 +8,6 @@
 /*.Rcheck/
 inst/doc
 docs/
+.claude/
+.positai/
+.cursor/

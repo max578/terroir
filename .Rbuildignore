@@ -8,3 +8,6 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^\.claude$
+^\.positai$
+^\.cursor$
