@@ -45,7 +45,7 @@
   while the values look like mm per day.
 
 * `options(terroir.nert_grid = )` puts every `nert` request in a batch on one shared
-  date grid, so each raster date is read once rather than once per request.
+  date grid, so a batch reads each raster date once.
 
 * `nert` refuses `PHENOLOGY`, whose EVI fields are integers scaled by 10,000 and
   would fail the NDVI/EVI range check.
