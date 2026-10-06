@@ -312,9 +312,16 @@
   if (anyNA(starts) || anyNA(ends)) {
     return(.refuse_all(requests, "nert needs start and end dates", "nert"))
   }
+  # `terroir.nert_grid`, a vector of dates, puts every request on one shared
+  # calendar so a batch reads each raster date once
   by <- getOption("terroir.nert_by", "day")
+  grid <- getOption("terroir.nert_grid", NULL)
   date_list <- lapply(seq_along(requests), function(i1) {
-    seq(as.Date(starts[i1]), as.Date(ends[i1]), by = by)
+    if (is.null(grid)) {
+      return(seq(as.Date(starts[i1]), as.Date(ends[i1]), by = by))
+    }
+    grid <- as.Date(grid)
+    grid[grid >= as.Date(starts[i1]) & grid <= as.Date(ends[i1])]
   })
   dates <- sort(unique(do.call(c, date_list)))
   xy <- unique(.request_xy(requests))
@@ -380,8 +387,9 @@
       license = "TERN (CC BY 4.0); via nert (AAGI-AUS)",
       retrieved_at = retrieved_at,
       call = sprintf(
-        "nert::collect_tern_data(datasets = c(%s), dates = '%s'..'%s' by %s)",
-        paste(datasets, collapse = ","), req$start, req$end, by
+        "nert::collect_tern_data(datasets = c(%s), dates = '%s'..'%s' %s)",
+        paste(datasets, collapse = ","), req$start, req$end,
+        if (is.null(grid)) paste("by", by) else "on the shared date grid"
       )
     )
   } # ends i1, over requests

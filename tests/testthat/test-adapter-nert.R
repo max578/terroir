@@ -56,3 +56,28 @@ test_that("nert's TERN-catalogue facts are honestly [unverified]", {
   nert_st <- st[st$source == "nert", ]
   expect_true(all(nert_st$status == "[unverified]"))
 })
+
+test_that("a shared date grid gives each request only the grid dates in its window", {
+  skip_if_not_installed("nert")
+  withr::local_envvar(TERN_API_KEY = "test-key")
+  withr::local_options(terroir.nert_grid = as.Date(c("2024-01-15", "2024-02-15", "2024-03-15")))
+  asked <- new.env()
+  fake <- function(dates, lon, lat, datasets, api_key, verbose, na.rm, ...) {
+    asked$dates <- dates
+    g <- expand.grid(i = seq_along(lon), date = as.Date(dates))
+    data.table::data.table(date = g$date, lon = lon[g$i], lat = lat[g$i],
+                           SMIPS_totalbucket = 10 + seq_len(nrow(g)))
+  }
+  testthat::local_mocked_bindings(collect_tern_data = fake, .package = "nert")
+  reqs <- list(
+    list(lon = 138.6, lat = -34.9, start = "2024-01-01", end = "2024-02-20",
+         variables = "SMIPS"),
+    list(lon = 117.0, lat = -31.5, start = "2024-03-01", end = "2024-03-31",
+         variables = "SMIPS")
+  )
+  out <- terroir:::.batch_nert(reqs, retrieved_at = "t0")
+  expect_identical(sort(as.character(asked$dates)),
+                   c("2024-01-15", "2024-02-15", "2024-03-15"))
+  expect_identical(as.character(out[[1L]]$date), c("2024-01-15", "2024-02-15"))
+  expect_identical(as.character(out[[2L]]$date), "2024-03-15")
+})

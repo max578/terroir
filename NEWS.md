@@ -44,6 +44,9 @@
   records. The `AET` unit stays empty because TERN's record says mm per month
   while the values look like mm per day.
 
+* `options(terroir.nert_grid = )` puts every `nert` request in a batch on one shared
+  date grid, so each raster date is read once rather than once per request.
+
 * `nert` refuses `PHENOLOGY`, whose EVI fields are integers scaled by 10,000 and
   would fail the NDVI/EVI range check.
 
