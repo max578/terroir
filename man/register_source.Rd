@@ -4,7 +4,15 @@
 \alias{register_source}
 \title{Register a data-source adapter}
 \usage{
-register_source(id, fun, package, free, description = "", extent = NULL)
+register_source(
+  id,
+  fun,
+  package,
+  free,
+  description = "",
+  extent = NULL,
+  batch = NULL
+)
 }
 \arguments{
 \item{id}{Character scalar. Unique source id (used as \code{source} in
@@ -25,6 +33,13 @@ the source's valid spatial extent, or \code{NULL} for a global source. A
 request outside a declared extent is refused by \code{\link[=collect_point]{collect_point()}} rather
 than silently returning an out-of-coverage value (Independent Oracle
 Principle: an Australia-only source must not be queried over Argentina).}
+
+\item{batch}{Optional function \verb{function(requests, retrieved_at)} that
+answers many requests for this source in one upstream call. It returns a
+list of the same length as \code{requests}, each element a
+\link[=new_geo_point_series]{geo_point_series} or a refusal. \code{\link[=collect_points]{collect_points()}}
+uses it for raster sources, where one file read serves every point.
+\code{NULL} (the default) means requests are answered one at a time by \code{fun}.}
 }
 \value{
 Invisibly, the registered \code{id}.

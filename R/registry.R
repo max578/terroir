@@ -23,6 +23,12 @@
 #'   request outside a declared extent is refused by [collect_point()] rather
 #'   than silently returning an out-of-coverage value (Independent Oracle
 #'   Principle: an Australia-only source must not be queried over Argentina).
+#' @param batch Optional function `function(requests, retrieved_at)` that
+#'   answers many requests for this source in one upstream call. It returns a
+#'   list of the same length as `requests`, each element a
+#'   [geo_point_series][new_geo_point_series] or a refusal. [collect_points()]
+#'   uses it for raster sources, where one file read serves every point.
+#'   `NULL` (the default) means requests are answered one at a time by `fun`.
 #' @return Invisibly, the registered `id`.
 #' @examples
 #' toy_adapter <- function(request, retrieved_at) {
@@ -38,7 +44,7 @@
 #' "toy" %in% list_sources()$id
 #' @export
 register_source <- function(id, fun, package, free, description = "",
-                            extent = NULL) {
+                            extent = NULL, batch = NULL) {
   if (!is.character(id) || length(id) != 1L || !nzchar(id)) {
     cli::cli_abort("{.arg id} must be a single non-empty string.")
   }
@@ -53,10 +59,13 @@ register_source <- function(id, fun, package, free, description = "",
       (!is.numeric(extent) || length(extent) != 4L || anyNA(extent))) {
     cli::cli_abort("{.arg extent} must be NULL or numeric c(xmin, ymin, xmax, ymax).")
   }
+  if (!is.null(batch) && !is.function(batch)) {
+    cli::cli_abort("{.arg batch} must be NULL or a function.")
+  }
   assign(
     id,
     list(id = id, fun = fun, package = package, free = TRUE,
-         description = description, extent = extent),
+         description = description, extent = extent, batch = batch),
     envir = .terroir_registry
   )
   invisible(id)
@@ -73,13 +82,14 @@ list_sources <- function() {
   if (!length(ids)) {
     return(data.table::data.table(
       id = character(), package = character(),
-      free = logical(), description = character()
+      free = logical(), batch = logical(), description = character()
     ))
   }
   rows <- lapply(ids, function(i) {
     e <- get(i, envir = .terroir_registry)
     data.table::data.table(
-      id = e$id, package = e$package, free = e$free, description = e$description
+      id = e$id, package = e$package, free = e$free,
+      batch = is.function(e$batch), description = e$description
     )
   })
   data.table::rbindlist(rows)

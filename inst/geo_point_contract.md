@@ -15,7 +15,9 @@ status: stable (v0.1.0 dev). The C6 machinery (request / series / verify /
   registry / offline replay / coarsening) and the response schema are stable.
   Adapter grounding is mixed and recorded in terroir_external_facts(): the
   nasapower (variable codes) and modis (product / band / NDVI scale) adapters
-  are live-verified against their authorities (2026-06-13); the silo, abares and
+  are live-verified against their authorities (2026-06-13); the licence terms of
+  worldclim, elevation, soilgrids and chirps and the silo units were read from
+  their authority pages on 2026-10-06; the silo codes, abares and
   stac adapters remain draft (their authoritative oracle has not yet been run in
   a recorded session -- honestly [unverified], not silently asserted).
 ```
@@ -97,7 +99,7 @@ source yields a structured refusal, never a break). Registered sources:
 | `modis` | MODISTools (ropensci) | MODIS NDVI/EVI time series (ORNL) | lat/lon pixel | yes |
 | `stac` | rsi (+ rstac) | Sentinel-2 / Landsat indices via Planetary Computer | AOI/point extract | yes |
 | `worldclim` / `soilgrids` / `elevation` | geodata | WorldClim normals + SoilGrids + elevation, global | extract at point | yes |
-| `chirps` | chirps (ropensci) | CHIRPS rainfall, global | point | yes |
+| `chirps` | chirps (ropensci) | CHIRPS 2.0 daily rainfall, 50 S to 50 N | point | yes (public domain) |
 | `tern` | nert (**AAGI-AUS**) | TERN ecosystem (flux/soil/ecology), Australia | point | yes |
 | `ocular` | ocular (**AAGI-AUS**) | Sentinel-2 / Landsat spectral-index series via Planetary Computer | 500 m window at the point | yes |
 

@@ -13,6 +13,6 @@ utils::globalVariables(c(
   "YYYYMMDD", "date", "variable", "value", "lon", "lat", "unit",
   "source", "source_version", "retrieved_at", "license", "calendar_date",
   "verified_on", "grounding", "fact_family", "evidence_path", "asserted_value",
-  "request_index", "status", "reason",
+  "request_index", "status", "reason", "call", "elevation", "slope", "row", "chirps", "ASC_EV",
   ".", ".N", ":="
 ))

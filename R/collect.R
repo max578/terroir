@@ -71,6 +71,17 @@ collect_point <- function(request, retrieved_at = NULL,
   }
   retrieved_at <- retrieved_at %||% as.character(Sys.time())
 
+  entry <- .check_request_online(request)
+  if (is_refusal(entry)) return(entry)
+
+  series <- entry$fun(request, retrieved_at = retrieved_at)
+  .finish_series(series, request)
+}
+
+# The checks every online request passes before any upstream call: a known
+# source, an installed upstream package, and a point inside the source extent.
+# Returns the registry entry, or a refusal.
+.check_request_online <- function(request) {
   entry <- .get_source(request$source)
   if (is.null(entry)) {
     return(.refuse(
@@ -100,8 +111,11 @@ collect_point <- function(request, retrieved_at = NULL,
       source = request$source
     ))
   }
+  entry
+}
 
-  series <- entry$fun(request, retrieved_at = retrieved_at)
+# Stamp the coarsening policy and verify an adapter's answer to one request.
+.finish_series <- function(series, request) {
   if (is_refusal(series)) return(series)
   series <- .stamp_coarsen_provenance(series, request)
   .verify_or_refuse(series, request$source)

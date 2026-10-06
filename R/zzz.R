@@ -18,7 +18,7 @@
                   paste("TERN soil / soil-moisture (SMIPS) / AET / canopy /",
                         "phenology (Australia) point extract via nert (AAGI-AUS);",
                         "free TERN API key"),
-                  extent = au_bbox)
+                  extent = au_bbox, batch = .batch_nert)
   # Global and keyless, so it complements nert's Australia-only keyed TERN soil
   # rather than duplicating it. No extent: SoilGrids is defined worldwide.
   register_source("isric", .adapter_isric, "apsimx", TRUE,
@@ -33,5 +33,20 @@
                         "500 m window (Microsoft Planetary Computer STAC) via",
                         "ocular (AAGI-AUS); cloud-masked, no key"),
                   extent = c(-180, -80, 180, 84))
+  register_source("worldclim", .adapter_worldclim, "geodata", TRUE,
+                  paste("WorldClim 2.1 bioclimatic variables bio_1 to bio_19",
+                        "(1970-2000), 30 arc-seconds; non-commercial licence"),
+                  batch = .batch_worldclim)
+  register_source("elevation", .adapter_elevation, "geodata", TRUE,
+                  paste("Elevation and slope from CGIAR-CSI SRTM 90 m;",
+                        "non-commercial licence"),
+                  extent = c(-180, -60, 180, 60), batch = .batch_elevation)
+  register_source("soilgrids", .adapter_soilgrids, "geodata", TRUE,
+                  paste("SoilGrids 2.0 means at 30 arc-seconds, 0-60 cm in",
+                        "four depths; read from the cloud raster, no key"),
+                  extent = c(-180, -60, 180, 90), batch = .batch_soilgrids)
+  register_source("chirps", .adapter_chirps, "chirps", TRUE,
+                  "CHIRPS 2.0 daily rainfall, 0.05 degree, 50 S to 50 N, no key",
+                  extent = c(-180, -50, 180, 50), batch = .batch_chirps)
   invisible()
 }

@@ -24,17 +24,22 @@ column (\code{NA_character_} for an \code{"ok"} row, the refusal message
 otherwise), followed by the fixed C6 \code{geo_point_series} columns. \code{lon},
 \code{lat} and \code{source} are populated on a refused row from the request itself
 (the values known even when nothing was collected); the remaining C6
-columns are \code{NA} on a refused row.
+columns are \code{NA} on a refused row. A final \code{call} column carries the
+upstream call recorded in each series' provenance.
 }
 \description{
-Batch/panel form of \code{\link[=collect_point]{collect_point()}}. Dispatches each request in \code{requests}
-in turn (via \code{\link[=collect_point]{collect_point()}}, so every per-request refusal path --
-unknown source, missing package, out-of-extent point, implausible value --
-applies identically) and stacks the results into one long \code{data.table}, one
-row per \verb{(request x variable)} for a successful collection or exactly one
-row for a refused request.
+Batch/panel form of \code{\link[=collect_point]{collect_point()}}. Stacks the results of every request
+in \code{requests} into one long \code{data.table}, one row per \verb{(request x date x variable)} for a successful collection or exactly one row for a refused
+request. Every per-request refusal path of \code{\link[=collect_point]{collect_point()}} (unknown
+source, missing package, out-of-extent point, implausible value) applies
+identically.
 }
 \details{
+Requests are grouped by source. A source registered with a \code{batch} function
+(see \code{\link[=register_source]{register_source()}}) receives all of its requests in one call, so a
+raster is read once for many points. Other sources are called one request at
+a time. Offline mode always answers one request at a time from fixtures.
+
 A refusal is never dropped from the stack: it contributes one row with
 \code{status == "refused"} and \code{reason} set to the refusal's message, so a
 40-site collection with two dead sources still returns 40 requests' worth

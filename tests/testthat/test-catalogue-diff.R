@@ -1,6 +1,8 @@
 # external-fact families: product_id, band_id, scale_factor,
 #   nasapower_variable_code, variable_code, renamed_column, layer_name,
-#   band_mapping, tern_dataset_id, stac_collection_id, stac_endpoint
+#   band_mapping, tern_dataset_id, stac_collection_id, stac_endpoint,
+#   worldclim_licence, elevation_licence, soilgrids_licence, chirps_licence,
+#   silo_unit
 # (recipe-52 catalogue/coverage header -- the validator's per-family F14 grep
 #  resolves every registry family to this catalogue-diff oracle file.)
 #
@@ -162,7 +164,10 @@ test_that("the fact registry is well-formed with mixed, honest grounding", {
     grounded_src,
     c("modis band_id", "modis product_id", "modis scale_factor",
       "nasapower nasapower_variable_code",
-      "ocular stac_collection_id", "ocular stac_endpoint")
+      "ocular stac_collection_id", "ocular stac_endpoint",
+      "worldclim worldclim_licence", "elevation elevation_licence",
+      "soilgrids soilgrids_licence", "chirps chirps_licence",
+      "silo silo_unit")
   )
   # Every grounded fact has a non-NA Date; every [unverified] fact has NA. The
   # registry must never claim a fact is grounded without a recorded date.
@@ -174,6 +179,9 @@ test_that("the fact registry is well-formed with mixed, honest grounding", {
   # which has not yet been diffed in a recorded session, so it stays honest.
   ungrounded_src <- facts[grounding == "[unverified]", unique(source)]
   expect_setequal(ungrounded_src, c("silo", "abares", "stac", "nert"))
+  # Licence and unit rows cite the authority page they were read from.
+  expect_false(anyNA(facts[grepl("_licence$|_unit$", fact_family),
+                           evidence_path]))
 })
 
 test_that("the canonical recipe-52 registry matches the reader view (no drift)", {
@@ -206,7 +214,8 @@ test_that("the registry validator reports the mixed grounding state per family",
 
   grounded_fams <- c("product_id", "band_id", "scale_factor",
                      "nasapower_variable_code", "stac_collection_id",
-                     "stac_endpoint")
+                     "stac_endpoint", "worldclim_licence", "elevation_licence",
+                     "soilgrids_licence", "chirps_licence", "silo_unit")
   ungrounded_fams <- c("variable_code", "renamed_column", "layer_name",
                        "band_mapping")
 

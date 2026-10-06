@@ -1,5 +1,59 @@
 # terroir (development version)
 
+## Batch collection
+
+* `register_source()` takes an optional `batch` function that answers many
+  requests in one upstream call.
+
+* `collect_points()` groups requests by source and variable list and hands a
+  batch-capable source all of its requests at once. Unknown-source,
+  missing-package and out-of-extent requests are refused as before.
+
+* `collect_points()` returns a final `call` column holding the upstream call
+  recorded in each series' provenance.
+
+* `nert` collects many points and dates in one `nert::collect_tern_data()`
+  call. `options(terroir.nert_by = "10 days")` sets the date step and
+  `options(terroir.nert_args = list(...))` passes further arguments.
+
+## New sources
+
+* `worldclim` returns WorldClim 2.1 `bio_1` to `bio_19` through `geodata`.
+  The licence (free for academic and non-commercial use) is recorded in each
+  series.
+
+* `elevation` returns SRTM 90 m elevation and slope in degrees through
+  `geodata` and `terra`. The licence is non-commercial and requires attribution
+  to CIAT.
+
+* `soilgrids` reads SoilGrids 2.0 means at nine properties and four depths from
+  0 to 60 cm from the cloud raster (CC BY 4.0).
+
+* `chirps` returns CHIRPS 2.0 daily rainfall through `chirps::get_chirps()`
+  (public domain).
+
+* `options(terroir.cache_dir = )` sets where `geodata` downloads are kept. The
+  default is `tools::R_user_dir("terroir", "cache")`.
+
+## Minor improvements and fixes
+
+* `silo` fills the `unit` column and records the real `weatherOz` call.
+
+* `nert` keeps `ASC_EV` order codes as numbers with unit `"ASC order code"`,
+  drops the `pixel_qa` flag columns and fills units from the TERN product
+  records. The `AET` unit stays empty because TERN's record says mm per month
+  while the values look like mm per day.
+
+* `nert` refuses `PHENOLOGY`, whose EVI fields are integers scaled by 10,000 and
+  would fail the NDVI/EVI range check.
+
+* `terroir_external_facts()` records the `worldclim`, `elevation`, `soilgrids`
+  and `chirps` licences and the `silo` units, each read from its authority page
+  on 2026-10-06 with the page URL in `evidence_path`.
+
+* The minimum R version is now 4.1.0. The imports need only 3.4, but testthat
+  and most adapter upstreams require 4.1, so an older floor could not be tested.
+
 ## A global soil source
 
 * **New source `isric`: ISRIC SoilGrids point profiles, global and keyless.**

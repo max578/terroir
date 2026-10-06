@@ -48,6 +48,41 @@
   ocular_stac      = as.Date("2026-09-02")
 )
 
+# Licence terms and SILO units grounded on 2026-10-06 against the pages of the
+# authorities that own them (retrieved text quoted in the grounding table kept
+# with the ORCHESTRA geo-pipeline notes). Each licence string is the summary the
+# adapter writes into its provenance; `evidence_path` carries the authority URL.
+.TERROIR_LICENCES <- list(
+  worldclim = list(
+    family = "worldclim_licence",
+    value = paste("free for academic and other non-commercial use;",
+                  "redistribution and commercial use need prior permission"),
+    url = "https://www.worldclim.org/about.html"),
+  elevation = list(
+    family = "elevation_licence",
+    value = paste("no commercial use, non-free resale or redistribution",
+                  "without CIAT written permission; attribution to CIAT"),
+    url = "https://srtm.csi.cgiar.org/disclaimer/"),
+  soilgrids = list(
+    family = "soilgrids_licence", value = "CC BY 4.0",
+    url = "https://www.isric.org/explore/soilgrids"),
+  chirps = list(
+    family = "chirps_licence", value = "public domain",
+    url = "https://www.chc.ucsb.edu/data/chirps")
+)
+
+# SILO units as `column=unit`, keyed by the weatherOz 3.0.0 column names.
+.TERROIR_SILO_UNITS <- c(
+  "rainfall=mm", "air_tmax=degC", "air_tmin=degC", "vp=hPa", "vp_deficit=hPa",
+  "evap_pan=mm", "evap_syn=mm", "evap_comb=mm", "evap_morton_lake=mm",
+  "radiation=MJ/m2", "rh_tmax=%", "rh_tmin=%", "et_short_crop=mm",
+  "et_tall_crop=mm", "et_morton_actual=mm", "et_morton_potential=mm",
+  "et_morton_wet=mm", "mslp=hPa"
+)
+.TERROIR_SILO_UNITS_URL <-
+  "https://www.longpaddock.qld.gov.au/silo/about/climate-variables/"
+.TERROIR_LICENCE_ON <- as.Date("2026-10-06")
+
 # The seed table. One row per asserted external-authority fact. `oracle_kind`
 # names the authority that grounds the fact; `verified_on` is a real recorded
 # diff date or `NA` (honestly un-grounded).
@@ -109,8 +144,20 @@
                oracle_kind = "live_catalogue", verified_on = ocular_on,
                stringsAsFactors = FALSE)
   )
-  out <- data.table::rbindlist(rows)
-  out[, evidence_path := NA_character_]
+  for (src in names(.TERROIR_LICENCES)) {
+    lic <- .TERROIR_LICENCES[[src]]
+    rows[[length(rows) + 1L]] <- data.frame(
+      source = src, fact_family = lic$family, asserted_value = lic$value,
+      oracle_kind = "authority_page", verified_on = .TERROIR_LICENCE_ON,
+      evidence_path = lic$url, stringsAsFactors = FALSE)
+  }
+  rows[[length(rows) + 1L]] <- data.frame(
+    source = "silo", fact_family = "silo_unit",
+    asserted_value = .TERROIR_SILO_UNITS, oracle_kind = "authority_page",
+    verified_on = .TERROIR_LICENCE_ON, evidence_path = .TERROIR_SILO_UNITS_URL,
+    stringsAsFactors = FALSE)
+  out <- data.table::rbindlist(rows, fill = TRUE)
+  out[is.na(evidence_path), evidence_path := NA_character_]
   out[]
 }
 
@@ -187,20 +234,26 @@ terroir_fact_status <- function() {
 .external_facts <- data.frame(
   family = c("product_id", "band_id", "scale_factor", "nasapower_variable_code",
              "variable_code", "renamed_column", "layer_name", "band_mapping",
-             "tern_dataset_id", "stac_collection_id", "stac_endpoint"),
+             "tern_dataset_id", "stac_collection_id", "stac_endpoint",
+             "worldclim_licence", "elevation_licence", "soilgrids_licence",
+             "chirps_licence", "silo_unit"),
   fact_id = c("modis.product_id", "modis.band_id", "modis.scale_factor",
               "nasapower.variable_code", "silo.variable_code",
               "silo.renamed_column", "abares.layer_name", "stac.band_mapping",
               "nert.tern_dataset_id", "ocular.stac_collection_id",
-              "ocular.stac_endpoint"),
+              "ocular.stac_endpoint", "worldclim.licence", "elevation.licence",
+              "soilgrids.licence", "chirps.licence", "silo.unit"),
   kind = c("locator", "enum", "units", "enum", "enum", "enum", "enum", "enum",
-           "enum", "enum", "locator"),
+           "enum", "enum", "locator", "constant", "constant", "constant",
+           "constant", "units"),
   value = c(
     "MOD13Q1", "250m_16_days_NDVI", "0.0001", "T2M, PRECTOTCORR",
     "max_temp, min_temp, rain", "air_tmax, air_tmin, rainfall",
     paste(.TERROIR_ABARES_LAYERS, collapse = ", "), "N=B08, R=B04",
     "SMIPS", "sentinel-2-l2a, landsat-c2-l2",
-    "https://planetarycomputer.microsoft.com/api/stac/v1"),
+    "https://planetarycomputer.microsoft.com/api/stac/v1",
+    vapply(.TERROIR_LICENCES, function(x) x$value, character(1L)),
+    paste(.TERROIR_SILO_UNITS, collapse = ", ")),
   source = c(
     "NASA LP DAAC MODIS MOD13Q1 product (ORNL DAAC MODISTools::mt_products)",
     "NASA LP DAAC MOD13Q1 band list (ORNL DAAC MODISTools::mt_bands)",
@@ -214,16 +267,19 @@ terroir_fact_status <- function() {
     paste("Microsoft Planetary Computer STAC collection catalogue",
           "(each id resolved at /collections/<id>)"),
     paste("Microsoft Planetary Computer STAC API root (the landing page",
-          "identifies itself as microsoft-pc)")),
+          "identifies itself as microsoft-pc)"),
+    vapply(.TERROIR_LICENCES, function(x) x$url, character(1L)),
+    .TERROIR_SILO_UNITS_URL),
   verified_on = c(
     "2026-06-13", "2026-06-13", "2026-06-13", "2026-06-13",
     NA_character_, NA_character_, NA_character_, NA_character_,
-    NA_character_, "2026-09-02", "2026-09-02"),
+    NA_character_, "2026-09-02", "2026-09-02",
+    rep("2026-10-06", 5L)),
   reverify_by = c("stable", "stable", "literature", "stable", "stable",
                   "stable", "stable", "literature", "stable", "stable",
-                  "stable"),
+                  "stable", rep("stable", 5L)),
   oracle_types = c("A,B", "B,E", "A,D", "B,E", "B,E", "B,E", "B,E", "B,E",
-                   "B,E", "B,E", "A,B"),
+                   "B,E", "B,E", "A,B", rep("A,D", 5L)),
   signoff = NA_character_,
   stringsAsFactors = FALSE)
 

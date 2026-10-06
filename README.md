@@ -57,14 +57,31 @@ series
 
 ## Sources
 
-Implemented adapters: `nasapower` (global climate + solar), `silo` (weatherOz /
-SILO 5 km grid, Australia), `abares` (read.abares gridded farm economics),
-`modis` (MODISTools NDVI/EVI), `stac` (rsi / Sentinel-2 via Planetary Computer),
-`nert` (TERN soil, soil-moisture, actual-evapotranspiration, canopy height and
-phenology, Australia), `ocular` (Sentinel-2 / Landsat spectral-index series over
-a 500 m window via the Microsoft Planetary Computer, cloud-masked). Enrolled and
-landing in a future release: GSODR, geodata (WorldClim + SoilGrids + elevation),
-chirps.
+Twelve adapters are registered; `list_sources()` shows them.
+
+| id | what it returns | key |
+|---|---|---|
+| `nasapower` | global daily climate and solar radiation | none |
+| `silo` | SILO 5 km daily weather, Australia (via weatherOz) | free email key |
+| `abares` | gridded farm economics (read.abares) | none |
+| `modis` | MODIS NDVI/EVI, 16-day (MODISTools) | none |
+| `stac` | Sentinel-2 NDVI via Planetary Computer (rsi) | none |
+| `ocular` | Sentinel-2 / Landsat index series over a 500 m window, cloud-masked | none |
+| `nert` | TERN soil, soil moisture, evapotranspiration, canopy height, Australia | free TERN key |
+| `isric` | SoilGrids soil profile by depth layer (apsimx) | none |
+| `soilgrids` | SoilGrids 2.0 means, nine properties at four depths to 60 cm (geodata) | none |
+| `worldclim` | WorldClim 2.1 bioclimatic variables bio_1 to bio_19 (geodata) | none |
+| `elevation` | SRTM 90 m elevation and slope (geodata) | none |
+| `chirps` | CHIRPS 2.0 daily rainfall, 50 S to 50 N | none |
+
+`worldclim` and `elevation` are free for non-commercial use only, and the
+licence is recorded in each series. `soilgrids` is CC BY 4.0 and `chirps` is
+public domain. GSODR is enrolled and not yet registered.
+
+`collect_points()` takes many requests at once. The gridded sources and `nert`
+answer a whole set of sites in one upstream call, and the result has a `call`
+column holding that call. Downloaded rasters go to the directory in
+`options(terroir.cache_dir = )`, by default the user cache directory for terroir.
 
 ## Status
 

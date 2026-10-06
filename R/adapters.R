@@ -56,6 +56,17 @@
 }
 
 # weatherOz / SILO -- Australia 5 km grid, point drill. Free key = email. -----
+
+# Units from SILO's climate-variables page, keyed by the column names weatherOz
+# returns (it renames rain, max_temp and min_temp).
+.SILO_UNITS <- c(
+  rainfall = "mm", air_tmax = "degC", air_tmin = "degC", vp = "hPa",
+  vp_deficit = "hPa", evap_pan = "mm", evap_syn = "mm", evap_comb = "mm",
+  evap_morton_lake = "mm", radiation = "MJ/m2", rh_tmax = "%", rh_tmin = "%",
+  et_short_crop = "mm", et_tall_crop = "mm", et_morton_actual = "mm",
+  et_morton_potential = "mm", et_morton_wet = "mm", mslp = "hPa"
+)
+
 .adapter_silo <- function(request, retrieved_at) {
   key <- Sys.getenv("SILO_API_KEY", unset = Sys.getenv("WEATHEROZ_SILO_KEY", unset = ""))
   if (!nzchar(key)) {
@@ -98,12 +109,15 @@
     variable.name = "variable", value.name = "value", variable.factor = FALSE
   )
   long <- long[, .(date = as.Date(date), variable, value = as.numeric(value),
-                   unit = NA_character_)]
+                   unit = unname(.SILO_UNITS[variable]))]
   new_geo_point_series(
     long, lon = request$lon, lat = request$lat, source = "silo",
     source_version = utils::packageVersion("weatherOz"),
     license = "SILO / BOM (CC BY 4.0)", retrieved_at = retrieved_at,
-    call = "weatherOz::get_data_drill(...)"
+    call = sprintf(
+      "weatherOz::get_data_drill(values = c(%s), start_date = '%s', end_date = '%s')",
+      paste(vals, collapse = ","), request$start, request$end
+    )
   )
 }
 
@@ -249,78 +263,133 @@
 # class layer (e.g. ASC soil-order) has no numeric point value and is dropped,
 # never coerced.
 .adapter_nert <- function(request, retrieved_at) {
-  # TERN needs a free API key. Read the env var directly (non-interactive-safe)
-  # rather than nert::get_key(), which aborts/prompts when the key is unset.
+  .batch_nert(list(request), retrieved_at)[[1L]]
+}
+
+# nert batch path -------------------------------------------------------------
+
+# Units of the nert columns this path emits, from the TERN product records.
+# AET carries no unit: its record states mm per month while live values look
+# like mm per day, so the unit stays empty until that is settled.
+.NERT_UNITS <- c(
+  SMIPS_totalbucket = "mm", SMIPS_SMindex = "index 0-1", SMIPS_bucket1 = "mm",
+  SMIPS_bucket2 = "mm", SMIPS_deepD = "mm", SMIPS_runoff = "mm",
+  ASC_EV = "ASC order code", ASC_CI = "index 0-1",
+  CANOPY_best_pick = "m", CANOPY_median = "m"
+)
+.SLGA_UNITS <- c(
+  AWC = "%", CLY = "%", SND = "%", SLT = "%", BDW = "g/cm3", PHC = "pH",
+  PHW = "pH", NTO = "%", AVP = "mg/kg", PTO = "%", CEC = "meq/100 g",
+  ECE = "meq/100 g", DUL = "%", L15 = "%"
+)
+
+.nert_unit <- function(col) {
+  slga <- sub("_.*$", "", col)
+  unit <- unname(.NERT_UNITS[col])
+  unit[is.na(unit) & slga %in% names(.SLGA_UNITS)] <-
+    unname(.SLGA_UNITS[slga[is.na(unit) & slga %in% names(.SLGA_UNITS)]])
+  unit[grepl("^SOILDIV_", col)] <- "NMDS axis"
+  unit
+}
+
+# Many points and dates in one collect_tern_data() call. Every request in the
+# batch shares one dataset list (the first request's); its dates run from start
+# to end at the `terroir.nert_by` step ("day" by default). PHENOLOGY is not
+# served here because its EVI fields are integer-scaled.
+.batch_nert <- function(requests, retrieved_at) {
   key <- Sys.getenv("TERN_API_KEY", unset = "")
   if (!nzchar(key)) {
-    return(.refuse(
-      paste("nert/TERN needs a free TERN API key; set TERN_API_KEY",
-            "(request one via nert::get_key())"),
-      "nert", warn = FALSE
+    return(.refuse_all(
+      requests, "nert/TERN needs a free TERN API key; set TERN_API_KEY", "nert"
     ))
   }
-  if (is.null(request$start) || is.null(request$end)) {
-    return(.refuse("nert needs start and end dates", "nert", warn = FALSE))
+  datasets <- requests[[1L]]$variables %||% "SMIPS"
+  if ("PHENOLOGY" %in% datasets) {
+    return(.refuse_all(
+      requests,
+      "nert PHENOLOGY is not served: its EVI fields are scaled by 10,000",
+      "nert"
+    ))
   }
-  datasets <- request$variables %||% "SMIPS"
-  dates <- tryCatch(
-    seq(as.Date(request$start), as.Date(request$end), by = "day"),
-    error = function(e) e
+  starts <- vapply(requests, function(r) as.character(r$start %||% NA), character(1L))
+  ends <- vapply(requests, function(r) as.character(r$end %||% NA), character(1L))
+  if (anyNA(starts) || anyNA(ends)) {
+    return(.refuse_all(requests, "nert needs start and end dates", "nert"))
+  }
+  by <- getOption("terroir.nert_by", "day")
+  date_list <- lapply(seq_along(requests), function(i1) {
+    seq(as.Date(starts[i1]), as.Date(ends[i1]), by = by)
+  })
+  dates <- sort(unique(do.call(c, date_list)))
+  xy <- unique(.request_xy(requests))
+
+  # GDAL settings for scattered range reads, restored on exit ----------------
+  gdal_vars <- c(GDAL_DISABLE_READDIR_ON_OPEN = "EMPTY_DIR",
+                 GDAL_HTTP_MULTIPLEX = "YES", GDAL_HTTP_VERSION = "2",
+                 VSI_CACHE = "TRUE", GDAL_CACHEMAX = "2048")
+  old <- Sys.getenv(names(gdal_vars), unset = NA)
+  on.exit({
+    for (v in names(old)) {
+      if (is.na(old[[v]])) Sys.unsetenv(v) else do.call(Sys.setenv, as.list(old[v]))
+    }
+  }, add = TRUE)
+  do.call(Sys.setenv, as.list(gdal_vars))
+
+  # `terroir.nert_args` passes further collect_tern_data() arguments, such as
+  # depth, stat or smips_collection
+  call_args <- c(
+    list(dates = dates, lon = xy[, 1], lat = xy[, 2], datasets = datasets,
+         api_key = key, verbose = FALSE, na.rm = FALSE),
+    getOption("terroir.nert_args", list())
   )
-  if (inherits(dates, "error")) {
-    return(.refuse(paste("nert: bad date range:", conditionMessage(dates)),
-                   "nert", warn = FALSE))
-  }
   out <- tryCatch(
-    nert::collect_tern_data(
-      date_range = dates, lon = request$lon, lat = request$lat,
-      datasets = datasets, api_key = key, verbose = FALSE, na.rm = FALSE
-    ),
+    do.call(nert::collect_tern_data, call_args),
     error = function(e) e
   )
   if (inherits(out, "error")) {
-    return(.refuse(paste("nert collect_tern_data failed:", conditionMessage(out)),
-                   "nert", warn = FALSE))
+    return(.refuse_all(
+      requests,
+      paste("nert collect_tern_data failed:", conditionMessage(out)), "nert"
+    ))
   }
   out <- data.table::as.data.table(out)
-  idc <- intersect(c("date", "lon", "lat"), names(out))
-  meas <- setdiff(names(out), idc)
-  # IOP: only numeric point-series layers; a character-class layer (ASC) carries
-  # no numeric value and is dropped, not coerced into a silent NA.
-  num_meas <- meas[vapply(meas, function(cl) is.numeric(out[[cl]]), logical(1))]
-  if (!length(num_meas) || !"date" %in% names(out)) {
-    return(.refuse(
-      paste0("nert returned no numeric point layers for dataset(s) ",
-             paste(datasets, collapse = ", "),
-             " (character-class layers such as ASC are not numeric series)"),
-      "nert", warn = FALSE
-    ))
-  }
+
+  # Keep numeric layers; ASC order codes arrive as text ---------------------
+  if ("ASC_EV" %in% names(out)) out[, ASC_EV := as.numeric(ASC_EV)]
+  meas <- setdiff(names(out), c("date", "lon", "lat"))
+  meas <- meas[!grepl("pixel_qa$", meas)]
+  meas <- meas[vapply(meas, function(cl) is.numeric(out[[cl]]), logical(1L))]
   long <- data.table::melt(
-    out, id.vars = "date", measure.vars = num_meas,
+    out, id.vars = c("date", "lon", "lat"), measure.vars = meas,
     variable.name = "variable", value.name = "value", variable.factor = FALSE
   )
-  long <- long[, .(date = as.Date(date), variable, value = as.numeric(value),
-                   unit = NA_character_)]
   long <- long[is.finite(value)]
-  # nert returns NA (never a fabricated number) when a COG fetch fails; an all-NA
-  # return means no real coverage at this point/date -- refuse, do not emit blanks.
-  if (!nrow(long)) {
-    return(.refuse(
-      "nert returned only NA at this point/date (COG fetch failed or no coverage)",
-      "nert", warn = FALSE
-    ))
-  }
-  new_geo_point_series(
-    long, lon = request$lon, lat = request$lat, source = "nert",
-    source_version = utils::packageVersion("nert"),
-    license = "TERN (CC BY 4.0); via nert (AAGI-AUS)", retrieved_at = retrieved_at,
-    call = sprintf(
-      "nert::collect_tern_data(lon=%g, lat=%g, datasets=c(%s), date_range='%s'..'%s')",
-      request$lon, request$lat, paste(datasets, collapse = ","),
-      request$start, request$end
+  long[, unit := .nert_unit(variable)]
+
+  # One series per request: its point and its own dates ----------------------
+  answers <- vector("list", length(requests))
+  for (i1 in seq_along(requests)) {
+    req <- requests[[i1]]
+    jj <- long$lon == req$lon & long$lat == req$lat & long$date %in% date_list[[i1]]
+    one <- long[jj, list(date = as.Date(date), variable, value, unit)]
+    if (nrow(one) == 0L) {
+      answers[[i1]] <- .refuse(
+        "nert returned only NA at this point and dates", "nert", warn = FALSE
+      )
+      next
+    }
+    answers[[i1]] <- new_geo_point_series(
+      one, lon = req$lon, lat = req$lat, source = "nert",
+      source_version = utils::packageVersion("nert"),
+      license = "TERN (CC BY 4.0); via nert (AAGI-AUS)",
+      retrieved_at = retrieved_at,
+      call = sprintf(
+        "nert::collect_tern_data(datasets = c(%s), dates = '%s'..'%s' by %s)",
+        paste(datasets, collapse = ","), req$start, req$end, by
+      )
     )
-  )
+  } # ends i1, over requests
+  answers
 }
 
 # ---------------------------------------------------------------------------

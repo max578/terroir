@@ -83,7 +83,7 @@ enforced by `register_source()` itself rather than merely documented.
 ### Registering a new source
 
 The toy adapter below returns a constant value for illustration; a real
-adapter would call an upstream package instead, the way the seven built-in
+adapter would call an upstream package instead, the way the built-in
 sources do.
 
 ```{r register-toy}
@@ -243,8 +243,10 @@ verify_geo_series(series)
 ```
 
 The `unit` column is part of the contract but is not yet populated by every
-adapter: `nasapower`, `silo`, `abares` and `nert` currently emit
-`NA_character_` there, while `modis`, `stac` and `ocular` set `"index"`.
+adapter: `nasapower` and `abares` emit `NA_character_` there, and so does
+`nert` for actual evapotranspiration, whose unit is ambiguous upstream. The
+vegetation-index sources set `"index"`, and `silo`, `worldclim`, `elevation`,
+`soilgrids`, `chirps` and the other `nert` products set a physical unit.
 `verify_geo_series()` does not yet warn on an all-`NA` `unit` column.
 
 ### Graceful refusal
@@ -298,10 +300,12 @@ knitr::kable(
 
 ```{r sources-table, echo = FALSE}
 sources_table <- data.table::data.table(
-  id = c("nasapower", "silo", "abares", "modis", "stac", "nert", "ocular"),
+  id = c("nasapower", "silo", "abares", "modis", "stac", "nert", "ocular",
+         "isric", "worldclim", "elevation", "soilgrids", "chirps"),
   upstream = c(
     "nasapower", "weatherOz", "read.abares", "MODISTools", "rsi",
-    "nert (AAGI-AUS)", "ocular (AAGI-AUS)"
+    "nert (AAGI-AUS)", "ocular (AAGI-AUS)", "apsimx", "geodata", "geodata",
+    "geodata", "chirps"
   ),
   domain = c(
     "global climate + solar (no key)",
@@ -316,12 +320,17 @@ sources_table <- data.table::data.table(
     paste0(
       "Sentinel-2 / Landsat spectral-index series over a 500 m window ",
       "(Planetary Computer; cloud-masked, no key)"
-    )
+    ),
+    "SoilGrids soil profile by depth layer (global, no key)",
+    "WorldClim 2.1 bioclimatic variables bio_1 to bio_19 (global, no key)",
+    "SRTM 90 m elevation and slope (non-commercial licence, no key)",
+    "SoilGrids 2.0 means at 0-60 cm in four depths (CC BY 4.0, no key)",
+    "CHIRPS 2.0 daily rainfall, 50 S to 50 N (public domain, no key)"
   )
 )
 knitr::kable(
   sources_table,
-  caption = "The seven registered sources and what each covers."
+  caption = "The registered sources and what each covers."
 )
 ```
 
@@ -331,8 +340,12 @@ The `ocular` source takes its index name from `variables[1]` (default
 on and cannot be switched off: a date whose window is entirely cloud is
 dropped from the series rather than returned as a spurious near-zero index.
 
-GSODR, geodata (WorldClim + SoilGrids + elevation) and chirps are enrolled
-in the ORCHESTRA and land as adapters in a future release.
+`worldclim`, `elevation`, `soilgrids` and `chirps` answer many requests in
+one upstream call when `collect_points()` is given a batch, so a set of
+sites costs one raster read rather than one per site. `worldclim` and
+`elevation` carry non-commercial licences that appear in each series'
+provenance. GSODR is enrolled in the ORCHESTRA and lands as an adapter in a
+future release.
 
 ## Read
 
