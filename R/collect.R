@@ -78,9 +78,7 @@ collect_point <- function(request, retrieved_at = NULL,
   .finish_series(series, request)
 }
 
-# The checks every online request passes before any upstream call: a known
-# source, an installed upstream package, and a point inside the source extent.
-# Returns the registry entry, or a refusal.
+# Registry entry for an online request, or the refusal that stops it.
 .check_request_online <- function(request) {
   entry <- .get_source(request$source)
   if (is.null(entry)) {

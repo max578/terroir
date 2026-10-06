@@ -1,6 +1,4 @@
-# The gridded adapters, offline: geodata and chirps are replaced by small
-# in-memory rasters and tables, so naming, units, refusals and the split of a
-# shared answer back into requests are tested without a download.
+# geodata and chirps are mocked with small in-memory rasters and tables.
 
 .ramp_raster <- function(nlyr, xmin, xmax, ymin, ymax) {
   r <- terra::rast(nrows = 10, ncols = 10, nlyrs = nlyr,

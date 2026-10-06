@@ -268,9 +268,8 @@
 
 # nert batch path -------------------------------------------------------------
 
-# Units of the nert columns this path emits, from the TERN product records.
-# AET carries no unit: its record states mm per month while live values look
-# like mm per day, so the unit stays empty until that is settled.
+# Units from the TERN product records. AET has none: its record says mm per
+# month but live values look like mm per day.
 .NERT_UNITS <- c(
   SMIPS_totalbucket = "mm", SMIPS_SMindex = "index 0-1", SMIPS_bucket1 = "mm",
   SMIPS_bucket2 = "mm", SMIPS_deepD = "mm", SMIPS_runoff = "mm",
@@ -292,10 +291,7 @@
   unit
 }
 
-# Many points and dates in one collect_tern_data() call. Every request in the
-# batch shares one dataset list (the first request's); its dates run from start
-# to end at the `terroir.nert_by` step ("day" by default). PHENOLOGY is not
-# served here because its EVI fields are integer-scaled.
+# All points and dates of a batch in one collect_tern_data() call.
 .batch_nert <- function(requests, retrieved_at) {
   key <- Sys.getenv("TERN_API_KEY", unset = "")
   if (!nzchar(key)) {

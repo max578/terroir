@@ -1,9 +1,4 @@
-# ---------------------------------------------------------------------------
-# Gridded sources read through geodata and chirps. Each source downloads a
-# tile, or reads a cloud raster cropped to the requested points, once per
-# batch, so many points cost about as much as one. The single-request adapter
-# is the batch adapter called with one request.
-# ---------------------------------------------------------------------------
+# Gridded sources through geodata and chirps; one raster read serves a batch.
 
 # Where geodata keeps its downloads between sessions.
 .terroir_cache_dir <- function() {

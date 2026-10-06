@@ -48,10 +48,7 @@
   ocular_stac      = as.Date("2026-09-02")
 )
 
-# Licence terms and SILO units grounded on 2026-10-06 against the pages of the
-# authorities that own them (retrieved text quoted in the grounding table kept
-# with the ORCHESTRA geo-pipeline notes). Each licence string is the summary the
-# adapter writes into its provenance; `evidence_path` carries the authority URL.
+# Licences and SILO units read from each authority's page on 2026-10-06.
 .TERROIR_LICENCES <- list(
   worldclim = list(
     family = "worldclim_licence",
