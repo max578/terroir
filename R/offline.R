@@ -70,7 +70,7 @@
 # A request field matches a fixture field when they are equal, or when both are
 # absent (`NA`). An absent request field does NOT match a present fixture field
 # (a defaulted request must replay against a defaulted fixture, not a specific
-# one), keeping the match honest.
+# one), keeping the match exact.
 .field_match <- function(req_value, fix_value) {
   if (is.na(req_value) && is.na(fix_value)) return(TRUE)
   if (is.na(req_value) || is.na(fix_value)) return(FALSE)

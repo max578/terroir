@@ -38,7 +38,7 @@
 # DAAC catalogue (MODISTools::mt_products / mt_bands) and NASA POWER variable
 # codes against the live POWER parameter dictionary on 2026-06-13. SILO, ABARES
 # and Sentinel-2 STAC stay NA: their authoritative oracle has not yet been run
-# in a recorded session, so they remain honestly `[unverified]`. The ocular
+# in a recorded session, so they remain `[unverified]`. The ocular
 # STAC families (collection ids and the API root) were resolved against the
 # Planetary Computer STAC catalogue itself on 2026-09-02 -- each collection
 # endpoint returned HTTP 200 and echoed back the asserted `id`.
@@ -82,7 +82,7 @@
 
 # The seed table. One row per asserted external-authority fact. `oracle_kind`
 # names the authority that grounds the fact; `verified_on` is a real recorded
-# diff date or `NA` (honestly un-grounded).
+# diff date or `NA` (un-grounded).
 .terroir_fact_seed <- function() {
   abares_layers <- .TERROIR_ABARES_LAYERS
   modis_on <- .TERROIR_VERIFIED$modis_grounded
@@ -121,7 +121,7 @@
     # nert / TERN. The dataset id terroir requests from nert. Its independent
     # oracle is the TERN catalogue (the authority that owns it), NOT nert's own
     # grounding (that would be the co-referential trap nert 1.0.0 taught us), and
-    # terroir has not yet diffed it in a recorded session -- so it is honestly
+    # terroir has not yet diffed it in a recorded session -- so it is
     # `[unverified]` (verified_on = NA), never grounded by trusting the source.
     data.frame(source = "nert", fact_family = "tern_dataset_id",
                asserted_value = "SMIPS", oracle_kind = "live_catalogue",
@@ -211,7 +211,7 @@ terroir_fact_status <- function() {
 # carries; the drift-guard test (tests/testthat/test-catalogue-diff.R) asserts
 # the two agree fact-for-fact.
 #
-# GROUNDING STATE (mixed, honest). The MODIS product / band / scale and the
+# GROUNDING STATE (mixed). The MODIS product / band / scale and the
 # NASA POWER variable-code families carry a real `verified_on` (2026-06-13):
 # each was diffed against the authority that owns it in a recorded live session
 # -- MODIS against the ORNL DAAC catalogue (`MODISTools::mt_products` /
@@ -220,7 +220,7 @@ terroir_fact_status <- function() {
 # ABARES and Sentinel-2 STAC families stay `verified_on = NA`: their
 # authoritative oracle (a keyed SILO catalogue, the large AGFD download, a
 # Planetary-Computer STAC introspection) has not yet been run in a recorded
-# session, so they remain honestly `[unverified]`. The two ocular STAC families
+# session, so they remain `[unverified]`. The two ocular STAC families
 # (the collection ids and the API root) carry `verified_on = 2026-09-02`: each
 # was resolved against the Planetary Computer catalogue in a recorded session
 # and echoed its own id back. We never fabricate a
@@ -292,7 +292,7 @@ terroir_fact_status <- function() {
 #' a `reason`. Mirrors the recipe-52 canonical validator. Grounding is now
 #' **mixed**: a family with a real `verified_on`, a non-stale re-grounding
 #' window, and an independent-oracle test referencing it passes (F13/F14 met);
-#' a family with `verified_on = NA` fails honestly with the un-grounded reason.
+#' a family with `verified_on = NA` fails with the un-grounded reason.
 #' Registry-wellformedness gates (empty source, a silent-failure kind without a
 #' D/E/F oracle, a `kind == "rule"` row without a sign-off) are global: a breach
 #' of one of these fails every family, because it indicts the whole registry.

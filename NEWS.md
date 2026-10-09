@@ -83,7 +83,7 @@
   unscales them, so the scale error is one upstream change away rather than
   impossible, and it is the same class the NDVI bound already guards.
 
-* **The statistic is selectable, within an honest limit.** `mean` or `Q0.5`.
+* **The statistic is selectable, within a stated limit.** `mean` or `Q0.5`.
   ISRIC publishes Q0.05 and Q0.95 as well, which is what would let soil enter an
   analysis as a prior rather than a point value, but the upstream wrapper does
   not expose them; asking for one refuses typed rather than quietly returning the
@@ -187,7 +187,7 @@
   does not trust it blindly -- only finite COG values are emitted (an all-NA return
   is refused, never blanked; a character-class layer such as ASC soil-order is
   dropped, not coerced), and the TERN dataset-id facts terroir asserts are
-  registered in `terroir_external_facts()` as honestly `[unverified]` (their oracle
+  registered in `terroir_external_facts()` as `[unverified]` (their oracle
   is the TERN catalogue directly -- not nert's own grounding -- and has not yet
   been diffed in a recorded session). `nert` is a `Suggests` (+ `Remotes:
   AAGI-AUS/nert`).
@@ -223,11 +223,11 @@
   / `mt_bands()` records and the NASA POWER parameter dictionary -- and carry a
   real `verified_on` (2026-06-13) in `terroir_external_facts()`. A new
   `nasapower_variable_code` family is enumerated. The SILO, ABARES and
-  Sentinel-2 STAC families stay honestly `[unverified]` (no fabricated date):
+  Sentinel-2 STAC families stay `[unverified]` (no fabricated date):
   their authoritative oracle has not yet been run in a recorded session. The
   registry validator now reports grounding **per family** rather than
   all-or-nothing, so a grounded family passes while an un-grounded one fails
-  with the honest reason.
+  with the un-grounded reason.
 
 * **Object system: S3 is the deliberate choice.** As a C6 *producer* (a classed
   `data.table` plus attribute-carried provenance and an optional-manifest
