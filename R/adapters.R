@@ -257,7 +257,7 @@
 # fabricated number) on a failed COG, so we keep only finite values and refuse an
 # all-NA return rather than emit blanks; (2) the *facts* terroir asserts about
 # TERN's catalogue (the dataset ids) are registered in `terroir_external_facts`
-# as `[unverified]` -- their independent oracle is the TERN authority
+# as ungrounded -- their independent oracle is the TERN authority
 # directly, which terroir has not yet diffed in a recorded session (using nert's
 # OWN grounding would be the co-referential trap nert taught us). A character
 # class layer (e.g. ASC soil-order) has no numeric point value and is dropped,

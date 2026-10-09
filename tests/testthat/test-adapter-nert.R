@@ -1,7 +1,7 @@
 # The nert / TERN adapter. nert is the flagship co-hallucinated-oracle case, so
 # these tests pin the IOP discipline: it refuses keyless (no fabricated data), it
 # parses a real-shaped return into a contract series, and the facts it asserts
-# about TERN's catalogue stay honestly `[unverified]` (its oracle is TERN, not
+# about TERN's catalogue stay ungrounded (its oracle is TERN, not
 # nert's own grounding).
 
 test_that("nert is a registered, free, Australia-extent source", {
@@ -46,7 +46,7 @@ test_that("the nert adapter parses a TERN return into a contract series", {
   expect_identical(unique(res$source), "nert")
 })
 
-test_that("nert's TERN-catalogue facts are honestly [unverified]", {
+test_that("nert's TERN-catalogue facts are ungrounded", {
   facts <- terroir_external_facts()
   nert_rows <- facts[facts$source == "nert", ]
   expect_true(nrow(nert_rows) >= 1L)
@@ -54,7 +54,7 @@ test_that("nert's TERN-catalogue facts are honestly [unverified]", {
   expect_true(all(is.na(nert_rows$verified_on)))
   st <- terroir_fact_status()
   nert_st <- st[st$source == "nert", ]
-  expect_true(all(nert_st$status == "[unverified]"))
+  expect_true(all(nert_st$n_unverified == nert_st$n_facts))
 })
 
 test_that("a shared date grid gives each request only the grid dates in its window", {

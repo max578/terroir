@@ -10,14 +10,16 @@
 # fact is enumerated with the oracle that would ground it and the date it was
 # last diffed against that authority. A fact is *grounded* iff `verified_on` is
 # a non-NA Date (orchestra provenance vocabulary, token "grounded"); otherwise
-# it is "[unverified]". Seeds ship all-[unverified]; the catalogue-diff oracle
+# it is "ungrounded". Seeds ship all-ungrounded; the catalogue-diff oracle
 # test (tests/testthat/test-catalogue-diff.R) is what flips them.
 # ---------------------------------------------------------------------------
 
 # Canonical grounding tokens (orchestra provenance vocabulary v1.0). terroir
 # cannot source the contract layer, so the tokens are hardcoded identically.
+# Readers also accept "[unverified]", the token emitted before 0.4.0.
 .TERROIR_GROUNDED   <- "grounded"
-.TERROIR_UNVERIFIED <- "[unverified]"
+.TERROIR_UNVERIFIED <- "ungrounded"
+.TERROIR_UNGROUNDED_TOKENS <- c("ungrounded", "[unverified]")
 
 # ABARES AAGIS farm-data layer names terroir asserts. Hoisted to a file-level
 # constant so the data.table seed (below) and the canonical recipe-52 registry
@@ -38,7 +40,7 @@
 # DAAC catalogue (MODISTools::mt_products / mt_bands) and NASA POWER variable
 # codes against the live POWER parameter dictionary on 2026-06-13. SILO, ABARES
 # and Sentinel-2 STAC stay NA: their authoritative oracle has not yet been run
-# in a recorded session, so they remain `[unverified]`. The ocular
+# in a recorded session, so they remain ungrounded. The ocular
 # STAC families (collection ids and the API root) were resolved against the
 # Planetary Computer STAC catalogue itself on 2026-09-02 -- each collection
 # endpoint returned HTTP 200 and echoed back the asserted `id`.
@@ -122,7 +124,7 @@
     # oracle is the TERN catalogue (the authority that owns it), NOT nert's own
     # grounding (that would be the co-referential trap nert 1.0.0 taught us), and
     # terroir has not yet diffed it in a recorded session -- so it is
-    # `[unverified]` (verified_on = NA), never grounded by trusting the source.
+    # ungrounded (verified_on = NA), never grounded by trusting the source.
     data.frame(source = "nert", fact_family = "tern_dataset_id",
                asserted_value = "SMIPS", oracle_kind = "live_catalogue",
                verified_on = as.Date(NA), stringsAsFactors = FALSE),
@@ -164,15 +166,13 @@
 #' product / band / scale, SILO variable codes, ABARES farm-data layer names,
 #' Sentinel-2 band mapping) together with its grounding provenance. A fact is
 #' *grounded* only when it has been diffed against the authority that owns it on
-#' a recorded date; until then it is `[unverified]`. The catalogue-diff oracle
+#' a recorded date; until then it is ungrounded. The catalogue-diff oracle
 #' test grounds them at check time.
 #'
 #' @return A `data.table` keyed by `source`, `fact_family`, with columns
 #'   `asserted_value`, `oracle_kind` (the authority that grounds the fact),
 #'   `verified_on` (`Date` or `NA`), `evidence_path`, and a derived `grounding`
-#'   token (`"grounded"` / `"[unverified]"`).
-#' @seealso The orchestra provenance vocabulary
-#'   (`ORCHESTRA_dev/integration/provenance_vocabulary.md`).
+#'   token (`"grounded"` / `"ungrounded"`).
 #' @export
 #' @examples
 #' facts <- terroir_external_facts()
@@ -198,7 +198,7 @@ terroir_fact_status <- function() {
   dt <- terroir_external_facts()
   dt[, .(n_facts = .N,
          n_grounded = sum(grounding == .TERROIR_GROUNDED),
-         n_unverified = sum(grounding == .TERROIR_UNVERIFIED)),
+         n_unverified = sum(grounding %in% .TERROIR_UNGROUNDED_TOKENS)),
      by = .(source, fact_family)][]
 }
 
@@ -220,7 +220,7 @@ terroir_fact_status <- function() {
 # ABARES and Sentinel-2 STAC families stay `verified_on = NA`: their
 # authoritative oracle (a keyed SILO catalogue, the large AGFD download, a
 # Planetary-Computer STAC introspection) has not yet been run in a recorded
-# session, so they remain `[unverified]`. The two ocular STAC families
+# session, so they remain ungrounded. The two ocular STAC families
 # (the collection ids and the API root) carry `verified_on = 2026-09-02`: each
 # was resolved against the Planetary Computer catalogue in a recorded session
 # and echoed its own id back. We never fabricate a

@@ -147,7 +147,7 @@ test_that("ocular's STAC collection ids resolve at the asserted endpoint", {
   }
 })
 
-test_that("the fact registry is well-formed with mixed, honest grounding", {
+test_that("the fact registry is well-formed with mixed grounding", {
   facts <- terroir_external_facts()
   expect_true(all(c("source", "fact_family", "asserted_value", "oracle_kind",
                     "verified_on", "evidence_path", "grounding") %in%
@@ -157,7 +157,7 @@ test_that("the fact registry is well-formed with mixed, honest grounding", {
   # codes were diffed against their live authorities on 2026-06-13, and the two
   # ocular STAC families against the Planetary Computer catalogue on
   # 2026-09-02, so those carry a real verified_on; SILO, ABARES and the rsi
-  # `stac` band mapping stay honestly [unverified] (NA).
+  # `stac` band mapping stay ungrounded (NA).
   grounded_src <- facts[grounding == "grounded",
                         sort(unique(paste(source, fact_family)))]
   expect_setequal(
@@ -169,15 +169,14 @@ test_that("the fact registry is well-formed with mixed, honest grounding", {
       "soilgrids soilgrids_licence", "chirps chirps_licence",
       "silo silo_unit")
   )
-  # Every grounded fact has a non-NA Date; every [unverified] fact has NA. The
+  # Every grounded fact has a non-NA Date; every ungrounded fact has NA. The
   # registry must never claim a fact is grounded without a recorded date.
   expect_true(all(!is.na(facts[grounding == "grounded", verified_on])))
-  expect_true(all(is.na(facts[grounding == "[unverified]", verified_on])))
+  expect_true(all(is.na(facts[grounding == "ungrounded", verified_on])))
 
-  # The still-ungrounded sources remain [unverified] -- not silently flipped.
-  # nert (TERN) joins them: its facts' oracle is the TERN catalogue directly,
-  # which has not yet been diffed in a recorded session, so it stays honest.
-  ungrounded_src <- facts[grounding == "[unverified]", unique(source)]
+  # nert (TERN) is ungrounded: its oracle is the TERN catalogue directly,
+  # which has not yet been diffed in a recorded session.
+  ungrounded_src <- facts[grounding == "ungrounded", unique(source)]
   expect_setequal(ungrounded_src, c("silo", "abares", "stac", "nert"))
   # Licence and unit rows cite the authority page they were read from.
   expect_false(anyNA(facts[grepl("_licence$|_unit$", fact_family),
@@ -205,7 +204,7 @@ test_that("the registry validator reports the mixed grounding state per family",
   # oracle grounded (MODIS product / band / scale and NASA POWER codes on
   # 2026-06-13; the ocular STAC families on 2026-09-02) and FAIL the ones
   # still awaiting their oracle (SILO, ABARES, the rsi band mapping)
-  # with the honest un-grounded reason. We never fabricate a verified_on to
+  # with the un-grounded reason. We never fabricate a verified_on to
   # force a green -- that would be the exact hallucination the Independent
   # Oracle Principle forbids; the NA families fail because they are genuinely
   # un-checked.

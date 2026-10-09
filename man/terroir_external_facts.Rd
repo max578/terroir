@@ -10,21 +10,17 @@ terroir_external_facts()
 A \code{data.table} keyed by \code{source}, \code{fact_family}, with columns
 \code{asserted_value}, \code{oracle_kind} (the authority that grounds the fact),
 \code{verified_on} (\code{Date} or \code{NA}), \code{evidence_path}, and a derived \code{grounding}
-token (\code{"grounded"} / \code{"[unverified]"}).
+token (\code{"grounded"} / \code{"ungrounded"}).
 }
 \description{
 Enumerates every fact terroir asserts about an external data authority (MODIS
 product / band / scale, SILO variable codes, ABARES farm-data layer names,
 Sentinel-2 band mapping) together with its grounding provenance. A fact is
 \emph{grounded} only when it has been diffed against the authority that owns it on
-a recorded date; until then it is \verb{[unverified]}. The catalogue-diff oracle
+a recorded date; until then it is ungrounded. The catalogue-diff oracle
 test grounds them at check time.
 }
 \examples{
 facts <- terroir_external_facts()
 facts[fact_family == "scale_factor"]
-}
-\seealso{
-The orchestra provenance vocabulary
-(\code{ORCHESTRA_dev/integration/provenance_vocabulary.md}).
 }

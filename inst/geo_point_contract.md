@@ -19,7 +19,7 @@ status: stable (v0.1.0 dev). The C6 machinery (request / series / verify /
   worldclim, elevation, soilgrids and chirps and the silo units were read from
   their authority pages on 2026-10-06; the silo codes, abares and
   stac adapters remain draft (their authoritative oracle has not yet been run in
-  a recorded session -- honestly [unverified], not silently asserted).
+  a recorded session, so they are marked ungrounded).
 ```
 
 **Object system: S3 (deliberate).** terroir is a C6 *producer* -- a classed

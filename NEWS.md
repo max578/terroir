@@ -1,4 +1,4 @@
-# terroir (development version)
+# terroir 0.4.0
 
 ## Batch collection
 
@@ -54,6 +54,12 @@
   and `chirps` licences and the `silo` units, each read from its authority page
   on 2026-10-06 with the page URL in `evidence_path`.
 
+* `terroir_external_facts()` marks an unchecked fact `"ungrounded"` in the
+  `grounding` column instead of `"[unverified]"`; `terroir_fact_status()` counts
+  both values.
+
+* The vignette was revised for clarity and completeness.
+
 * The minimum R version is now 4.1.0. The imports need only 3.4, but testthat
   and most adapter upstreams require 4.1, so an older floor could not be tested.
 
@@ -88,10 +94,6 @@
   analysis as a prior rather than a point value, but the upstream wrapper does
   not expose them; asking for one refuses typed rather than quietly returning the
   mean under a quantile's name.
-
-# terroir (development version)
-
-* Vignettes brought to the orchestra's vignette quality bar v1.
 
 # terroir 0.3.0
 
@@ -187,7 +189,7 @@
   does not trust it blindly -- only finite COG values are emitted (an all-NA return
   is refused, never blanked; a character-class layer such as ASC soil-order is
   dropped, not coerced), and the TERN dataset-id facts terroir asserts are
-  registered in `terroir_external_facts()` as `[unverified]` (their oracle
+  registered in `terroir_external_facts()` as not yet checked (their oracle
   is the TERN catalogue directly -- not nert's own grounding -- and has not yet
   been diffed in a recorded session). `nert` is a `Suggests` (+ `Remotes:
   AAGI-AUS/nert`).
@@ -223,7 +225,7 @@
   / `mt_bands()` records and the NASA POWER parameter dictionary -- and carry a
   real `verified_on` (2026-06-13) in `terroir_external_facts()`. A new
   `nasapower_variable_code` family is enumerated. The SILO, ABARES and
-  Sentinel-2 STAC families stay `[unverified]` (no fabricated date):
+  Sentinel-2 STAC families stay unchecked (no fabricated date):
   their authoritative oracle has not yet been run in a recorded session. The
   registry validator now reports grounding **per family** rather than
   all-or-nothing, so a grounded family passes while an un-grounded one fails
@@ -249,7 +251,7 @@
   - `terroir_external_facts()` / `terroir_fact_status()`: a provenance registry
     enumerating every asserted fact (MODIS product/band/scale, SILO variable
     codes, ABARES AGFD layer names, Sentinel-2 band mapping) with the oracle
-    that grounds it and a `verified_on` date; seeds ship all `[unverified]`.
+    that grounds it and a `verified_on` date; seeds ship all unchecked.
   - `test-catalogue-diff.R`: independent-oracle tests that diff the asserted
     codes against each authority's *own* catalogue (`MODISTools::mt_products()`
     / `mt_bands()`, weatherOz SILO values, the AGFD data dictionary).
