@@ -85,7 +85,7 @@ column holding that call. Downloaded rasters go to the directory in
 
 ## Status
 
-`terroir` 0.3.0. The contract machinery, offline replay and coordinate
+`terroir` 0.4.0. The contract machinery, offline replay and coordinate
 coarsening are complete and tested; `nasapower`, `modis`, `abares` and `stac`
 are verified end-to-end against recorded goldens, and `ocular` against a live
 two-sensor regression pilot. Live golden fixtures for the network/key adapters
