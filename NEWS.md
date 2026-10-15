@@ -1,3 +1,12 @@
+# terroir (development version)
+
+* The package has a logo.
+* README lists related packages and carries check, coverage and r-universe
+  badges.
+* CI runs lintr (report-only) and test coverage.
+* The citation reads the version from the installed package, so it always
+  matches.
+
 # terroir 0.4.0
 
 ## Batch collection

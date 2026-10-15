@@ -1,6 +1,9 @@
-# terroir
+# terroir <img src="man/figures/logo.png" align="right" height="139" alt="terroir logo" />
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/max578/terroir/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/max578/terroir/actions/workflows/R-CMD-check.yaml)
+[![Codecov test coverage](https://codecov.io/gh/max578/terroir/graph/badge.svg)](https://app.codecov.io/gh/max578/terroir)
+[![r-universe](https://max578.r-universe.dev/badges/terroir)](https://max578.r-universe.dev/terroir)
 <!-- badges: end -->
 
 **Geo-point environmental and agricultural-economics data collector.** Hand
@@ -13,6 +16,22 @@ contract.
 supplies covariates and forcings to `flexyBayes`, `kernR` and `PESTO`. See
 `../CONSTELLATION_MEMBER.md` and the contract spec `inst/geo_point_contract.md`
 (C6).
+
+## Related packages
+
+- [geodata](https://CRAN.R-project.org/package=geodata) downloads
+  geographic data for spatial analysis and mapping, including climate,
+  crops, elevation, land use and soil.
+- [nasapower](https://CRAN.R-project.org/package=nasapower) is a client
+  for the NASA POWER global meteorology, solar energy and climatology API.
+- [weatherOz](https://CRAN.R-project.org/package=weatherOz) downloads and
+  formats Australian weather and climate data, including SILO.
+
+terroir calls these packages, among others, as optional sources. It adds
+one request for a point and a date range, one table layout for every
+source, a provenance record on each result, offline replay from recorded
+data, and optional coarsening of exact coordinates before any request
+leaves the machine.
 
 ## Installation
 
@@ -85,7 +104,7 @@ column holding that call. Downloaded rasters go to the directory in
 
 ## Status
 
-`terroir` 0.4.0. The contract machinery, offline replay and coordinate
+The contract machinery, offline replay and coordinate
 coarsening are complete and tested; `nasapower`, `modis`, `abares` and `stac`
 are verified end-to-end against recorded goldens, and `ocular` against a live
 two-sensor regression pilot. Live golden fixtures for the network/key adapters

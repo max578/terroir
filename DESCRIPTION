@@ -1,6 +1,6 @@
 Package: terroir
 Title: Geo-Point Environmental and Agricultural-Economics Data Collector
-Version: 0.4.0
+Version: 0.4.0.9000
 Authors@R:
     person("Max", "Moldovan", , "max.moldovan@adelaide.edu.au",
            role = c("aut", "cre", "cph"),

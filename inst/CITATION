@@ -1,6 +1,5 @@
-# Hand-crafted CITATION for the terroir package. citEntry/bibentry fields are
-# written out so `citation("terroir")` renders a clean reference without a
-# generated meta block.
+# Hand-crafted CITATION for the terroir package. The version is read from the
+# installed package's DESCRIPTION.
 
 citHeader("To cite the terroir package in publications, use:")
 
@@ -11,11 +10,12 @@ bibentry(
   author   = person("Max", "Moldovan",
                     comment = c(ORCID = "0000-0001-9680-8474")),
   year     = "2026",
-  note     = "R package version 0.4.0",
+  note     = sprintf("R package version %s", meta$Version),
   url      = "https://github.com/max578/terroir",
   textVersion = paste(
     "Moldovan, M. (2026). terroir: A Uniform Geo-Point Interface for Free",
-    "Environmental and Agricultural-Economics Data. R package version 0.4.0.",
+    "Environmental and Agricultural-Economics Data.",
+    sprintf("R package version %s.", meta$Version),
     "https://github.com/max578/terroir"
   )
 )
