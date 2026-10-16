@@ -89,3 +89,56 @@ test_that("collect_point validates the offline argument", {
   expect_error(collect_point(req, offline = "yes"), "single logical")
   expect_error(collect_point(req, offline = NA), "single logical")
 })
+
+# A scratch fixture directory holding one manifest row for a nasapower request.
+local_fixture_dir <- function(file, env = parent.frame()) {
+  d <- withr::local_tempdir(.local_envir = env)
+  manifest <- data.frame(
+    source = "nasapower", file = file, lon = 138.6, lat = -34.92,
+    start = "2020-01-01", end = "2020-01-10", variables = NA_character_,
+    retrieved_at = "2026-06-02 00:00:00", stringsAsFactors = FALSE
+  )
+  saveRDS(manifest, file.path(d, "manifest.rds"))
+  withr::local_options(list(terroir.fixture_dir = d), .local_envir = env)
+  d
+}
+
+offline_request <- function() {
+  geo_point_request(138.6, -34.92, "2020-01-01", "2020-01-10",
+                    source = "nasapower")
+}
+
+test_that("offline mode refuses when the directory has no manifest", {
+  skip_if_not_installed("withr")
+  d <- withr::local_tempdir()
+  withr::local_options(list(terroir.fixture_dir = d))
+  s <- collect_point(offline_request(), offline = TRUE)
+  expect_true(is_refusal(s))
+  expect_match(s$reason, "no fixture manifest")
+})
+
+test_that("offline mode refuses when the manifest names a missing file", {
+  skip_if_not_installed("withr")
+  local_fixture_dir("gone.rds")
+  s <- collect_point(offline_request(), offline = TRUE)
+  expect_true(is_refusal(s))
+  expect_match(s$reason, "'gone.rds' is missing")
+})
+
+test_that("offline mode refuses an unreadable fixture file", {
+  skip_if_not_installed("withr")
+  d <- local_fixture_dir("broken.rds")
+  writeLines("not an rds file", file.path(d, "broken.rds"))
+  s <- collect_point(offline_request(), offline = TRUE)
+  expect_true(is_refusal(s))
+  expect_match(s$reason, "could not read fixture 'broken.rds'")
+})
+
+test_that("offline mode refuses a fixture that is not a series", {
+  skip_if_not_installed("withr")
+  d <- local_fixture_dir("table.rds")
+  saveRDS(data.frame(x = 1), file.path(d, "table.rds"))
+  s <- collect_point(offline_request(), offline = TRUE)
+  expect_true(is_refusal(s))
+  expect_match(s$reason, "not a geo_point_series")
+})

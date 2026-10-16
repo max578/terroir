@@ -12,3 +12,12 @@ test_that("register_source enforces the free-only role rule", {
   )
   expect_error(register_source("", function() NULL, "x", TRUE), "non-empty")
 })
+
+test_that("loading the package again leaves the registry unchanged", {
+  before <- list_sources()
+  terroir:::.onLoad(NULL, "terroir")
+  expect_identical(list_sources(), before)
+  expect_true(all(c("nasapower", "silo", "abares", "modis", "stac", "nert",
+                    "isric", "ocular", "worldclim", "elevation", "soilgrids",
+                    "chirps") %in% before$id))
+})

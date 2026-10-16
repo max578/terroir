@@ -37,3 +37,18 @@ test_that("verify_geo_series fails loudly on a malformed series", {
 
   expect_error(verify_geo_series(make_long()), "geo_point_series")
 })
+
+test_that("a series prints its row count, source and variables", {
+  s <- new_geo_point_series(
+    make_long(), lon = 138.6, lat = -34.92, source = "test",
+    source_version = "1.0", license = "free", retrieved_at = "t",
+    call = "test()"
+  )
+  table <- utils::capture.output(header <- cli::cli_fmt(print(s)))
+  header <- paste(header, collapse = "\n")
+  expect_match(header, "2 rows")
+  expect_match(header, "test")
+  expect_match(header, "T2M")
+  # the rows themselves follow the header
+  expect_true(any(grepl("21.3", table, fixed = TRUE)))
+})
