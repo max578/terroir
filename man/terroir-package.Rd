@@ -14,6 +14,7 @@ A uniform, point-keyed interface for retrieving climate, weather, vegetation-ind
 Useful links:
 \itemize{
   \item \url{https://github.com/max578/terroir}
+  \item \url{https://max578.github.io/terroir/}
   \item Report bugs at \url{https://github.com/max578/terroir/issues}
 }
 
