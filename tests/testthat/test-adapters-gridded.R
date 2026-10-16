@@ -88,3 +88,41 @@ test_that("chirps splits one shared answer back into each request's window", {
   # the upstream missing-value code never becomes rainfall
   expect_true(is_refusal(out[[2L]]))
 })
+
+test_that("elevation reads height and slope; flat ground has zero slope", {
+  skip_if_not_installed("geodata")
+  skip_if_not_installed("terra")
+  testthat::local_mocked_bindings(
+    elevation_3s = function(lon, lat, path, ...) {
+      r <- terra::rast(nrows = 20, ncols = 20, xmin = 135, xmax = 140,
+                       ymin = -35, ymax = -30)
+      terra::values(r) <- 250
+      r
+    },
+    .package = "geodata"
+  )
+  reqs <- list(geo_point_request(137.5, -32.5, source = "elevation"))
+  out <- .batch_elevation(reqs, retrieved_at = "t0")
+  expect_s3_class(out[[1L]], "geo_point_series")
+  expect_identical(out[[1L]]$variable, c("elevation", "slope"))
+  expect_equal(out[[1L]]$value, c(250, 0))
+  expect_identical(out[[1L]]$unit, c("m", "degree"))
+})
+
+test_that("elevation refuses beyond 60 degrees and where no tile exists", {
+  reqs <- list(geo_point_request(20, 70, source = "elevation"))
+  out <- .batch_elevation(reqs, retrieved_at = "t0")
+  expect_true(is_refusal(out[[1L]]))
+  expect_match(out[[1L]]$reason, "60 S to 60 N")
+
+  skip_if_not_installed("geodata")
+  skip_if_not_installed("terra")
+  testthat::local_mocked_bindings(
+    elevation_3s = function(...) stop("tile not found"),
+    .package = "geodata"
+  )
+  out <- .adapter_elevation(geo_point_request(-30, 0, source = "elevation"),
+                            retrieved_at = "t0")
+  expect_true(is_refusal(out))
+  expect_match(out$reason, "no value")
+})

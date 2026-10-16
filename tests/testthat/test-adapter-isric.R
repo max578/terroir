@@ -98,3 +98,55 @@ test_that("the statistic is selectable, and an unavailable quantile is refused",
   expect_match(out$reason, "Q0.95")
   expect_match(out$reason, "no other quantile")
 })
+
+test_that("a profile becomes one row per property and depth, NA layers dropped", {
+  skip_if_not_installed("apsimx")
+  testthat::local_mocked_bindings(
+    get_isric_soil_profile = function(lonlat, statistic, fix, verbose, ...) {
+      list(soil = data.frame(
+        Depth = c("0-5", "5-15"),
+        ParticleSizeClay = c(16.9, 20.1),
+        PH = c(6.5, NA_real_)
+      ))
+    },
+    .package = "apsimx"
+  )
+  req <- geo_point_request(lon = 138.69, lat = -34.51, source = "isric",
+                           variables = c("clay", "ph"))
+  s <- terroir:::.adapter_isric(req, retrieved_at = "t0")
+  expect_s3_class(s, "geo_point_series")
+  expect_identical(s$variable, c("clay_0_5cm", "clay_5_15cm", "ph_0_5cm"))
+  expect_identical(s$value, c(16.9, 20.1, 6.5))
+  expect_identical(s$unit, c("%", "%", "pH"))
+})
+
+test_that("an upstream failure or an empty profile is refused", {
+  skip_if_not_installed("apsimx")
+  req <- geo_point_request(lon = 138.69, lat = -34.51, source = "isric",
+                           variables = "clay")
+  testthat::local_mocked_bindings(
+    get_isric_soil_profile = function(...) stop("timeout"),
+    .package = "apsimx"
+  )
+  out <- terroir:::.adapter_isric(req, retrieved_at = "t0")
+  expect_true(is_refusal(out))
+  expect_match(out$reason, "isric call failed: timeout")
+
+  testthat::local_mocked_bindings(
+    get_isric_soil_profile = function(...) list(soil = data.frame()),
+    .package = "apsimx"
+  )
+  out <- terroir:::.adapter_isric(req, retrieved_at = "t0")
+  expect_true(is_refusal(out))
+  expect_match(out$reason, "no soil layers")
+
+  testthat::local_mocked_bindings(
+    get_isric_soil_profile = function(...) {
+      list(soil = data.frame(ParticleSizeClay = 16.9))
+    },
+    .package = "apsimx"
+  )
+  out <- terroir:::.adapter_isric(req, retrieved_at = "t0")
+  expect_true(is_refusal(out))
+  expect_match(out$reason, "no Depth column")
+})
