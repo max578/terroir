@@ -46,6 +46,6 @@ VignetteBuilder: knitr
 Remotes:
     AAGI-AUS/nert,
     AAGI-AUS/ocular@3317d806806185d1cf509515212d4f2c9cb16e80
-URL: https://github.com/max578/terroir
+URL: https://github.com/max578/terroir, https://max578.github.io/terroir/
 BugReports: https://github.com/max578/terroir/issues
 Config/roxygen2/version: 8.1.0
